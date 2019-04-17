@@ -69,9 +69,9 @@ def _process_single_case(case_name, dataset_type='train'):
         
         np.save(os.path.join(data_dir, case_name + f'_{str_i}_scan'), sc)
 
-        wt = (seg[:, :, i] > 0).astype(np.int8)                                     # whole tumor
-        et = (seg[:, :, i] == 4).astype(np.int8)                                    # enhancing tumor
-        tc = np.logical_or(seg[:, :, i] == 1, seg[:, :, i] == 4).astype(np.int8)    # tumor core
+        wt = (seg[:, :, i] > 0).astype(np.uint8)                                     # whole tumor
+        et = (seg[:, :, i] == 4).astype(np.uint8)                                    # enhancing tumor
+        tc = np.logical_or(seg[:, :, i] == 1, seg[:, :, i] == 4).astype(np.uint8)    # tumor core
 
         np.save(os.path.join(data_dir, case_name + f'_{str_i}_wt'), wt)
         np.save(os.path.join(data_dir, case_name + f'_{str_i}_et'), et)

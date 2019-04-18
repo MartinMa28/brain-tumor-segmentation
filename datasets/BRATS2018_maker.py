@@ -97,13 +97,13 @@ if __name__ == "__main__":
     train_list = subset_list[:training_num]
     val_list = subset_list[training_num:]
     
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        executor.map(process_training_case, train_list)
+    # with ThreadPoolExecutor(max_workers=4) as executor:
+    #     executor.map(process_training_case, train_list)
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        executor.map(process_validating_case, val_list)
-    # list(map(process_training_case, train_list))
-    # list(map(process_validating_case, val_list))
+    # with ThreadPoolExecutor(max_workers=4) as executor:
+    #     executor.map(process_validating_case, val_list)
+    list(map(process_training_case, train_list))
+    list(map(process_validating_case, val_list))
 
     num_train_cases = sum([1 for line in open(train_list_txt)])
     num_val_cases = sum([1 for line in open(val_list_txt)])

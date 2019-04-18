@@ -79,6 +79,9 @@ class NormalizeBRATS():
         mean = torch.mean(sc)
         std = torch.std(sc)
         
-        sc = sc.sub(mean).div(std)
+        if std == 0:
+            sc = sc.sub(mean)
+        else:
+            sc = sc.sub(mean).div(std)
         
         return sc, mask   

@@ -92,9 +92,10 @@ def process_validating_case(case_name):
 if __name__ == "__main__":
     training_rate = 0.85
     case_list = sorted(os.listdir('./BRATS2018/HGG/'))
-    training_num = int(len(case_list) * training_rate)
-    train_list = case_list[:training_num]
-    val_list = case_list[training_num:]
+    subset_list = case_list[:100]
+    training_num = int(len(subset_list) * training_rate)
+    train_list = subset_list[:training_num]
+    val_list = subset_list[training_num:]
     
     with ThreadPoolExecutor(max_workers=4) as executor:
         executor.map(process_training_case, train_list)

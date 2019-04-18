@@ -90,7 +90,7 @@ def get_dataset_dataloader(input_data_type, batch_size):
     
 
     data_loader = {
-        'train': DataLoader(data_set['train'], batch_size=batch_size, shuffle=False, num_workers=0),
+        'train': DataLoader(data_set['train'], batch_size=batch_size, shuffle=True, num_workers=0),
         'val': DataLoader(data_set['val'], batch_size=batch_size, shuffle=False, num_workers=0)
     }
 

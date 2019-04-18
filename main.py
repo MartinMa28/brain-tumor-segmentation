@@ -37,12 +37,12 @@ logger = logging.getLogger('main')
 
 # 20 classes and background for VOC segmentation
 n_classes = 2
-batch_size = 4
-epochs = 3
+batch_size = 8
+epochs = 50
 lr = 1e-2
 #momentum = 0
 w_decay = 1e-5
-step_size = 10
+step_size = 5
 gamma = 0.5
 configs = "UNets-BRATS2018_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
 print('Configs: ')
@@ -90,7 +90,7 @@ def get_dataset_dataloader(input_data_type, batch_size):
     
 
     data_loader = {
-        'train': DataLoader(data_set['train'], batch_size=batch_size, shuffle=True, num_workers=0),
+        'train': DataLoader(data_set['train'], batch_size=batch_size, shuffle=False, num_workers=0),
         'val': DataLoader(data_set['val'], batch_size=batch_size, shuffle=False, num_workers=0)
     }
 

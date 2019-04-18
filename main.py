@@ -39,7 +39,7 @@ logger = logging.getLogger('main')
 n_classes = 2
 batch_size = 8
 epochs = 50
-lr = 1e-2
+lr = 5e-3
 #momentum = 0
 w_decay = 1e-5
 step_size = 5
@@ -168,6 +168,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
     epoch_loss = np.zeros((2, epochs))
     epoch_acc = np.zeros((2, epochs))
+    epoch_class_acc = np.zeros((2, epochs))
     epoch_mean_iou = np.zeros((2, epochs))
     evaluator = Evaluator(num_classes)
 
@@ -224,18 +225,16 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
             
             epoch_loss[phase_ind, epoch] = running_loss / len(data_set[phase])
-            epoch_acc[phase_ind, epoch] = running_acc / len(data_set[phase])
+            epoch_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy()
+            epoch_class_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy_Class()
             epoch_mean_iou[phase_ind, epoch] = evaluator.Mean_Intersection_over_Union()
             
-            logger.info('{} loss: {:.4f}, acc: {:.4f}, mean iou: {:.6f}'.format(phase,\
-                epoch_loss[phase_ind, epoch], epoch_acc[phase_ind, epoch],\
+            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:4.f}, mean iou: {:.6f}'.format(phase,\
+                epoch_loss[phase_ind, epoch],\
+                epoch_acc[phase_ind, epoch],\
+                epoch_class_acc[phase_ind, epoch],\
                 epoch_mean_iou[phase_ind, epoch]))
 
-            eva_pixel_acc = evaluator.Pixel_Accuracy()
-            eva_pixel_acc_class = evaluator.Pixel_Accuracy_Class()
-            eva_mIOU = evaluator.Mean_Intersection_over_Union()
-            logger.info('{} - Evaluator - acc: {:.4f}, acc class: {:.4f}, mean iou: {:.6f}'.format(phase,\
-                eva_pixel_acc, eva_pixel_acc_class, eva_mIOU))
 
             if phase == 'val' and epoch_acc[phase_ind, epoch] > best_acc:
                 best_acc = epoch_acc[phase_ind, epoch]

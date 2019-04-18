@@ -37,7 +37,8 @@ class BRATS2018(Dataset):
     def __getitem__(self, index):
         if self.scan_type == 't1ce':
             sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[1]
-            assert sc.shape == (240, 240)
+            sc = np.expand_dims(sc, axis=0)
+            assert sc.shape == (1, 240, 240)
         else:
             sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))
             sc = np.array([sc[2], sc[3]])
@@ -62,8 +63,6 @@ class ToTensor():
         sc, mask = sample
         
         sc = torch.from_numpy(sc).float()
-        sc = sc.unsqueeze(dim=0)
-        
         mask = torch.from_numpy(mask).float()
         
         return sc, mask
@@ -76,7 +75,7 @@ class NormalizeBRATS():
     def __call__(self, sample):
         sc, mask = sample
         
-        mean = torch.mean(sc)
+        mean = torch.mean(sc, dim=(1, 2), keepdim=True)
         std = torch.std(sc)
         
         if std == 0:

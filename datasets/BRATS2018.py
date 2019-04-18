@@ -27,7 +27,7 @@ class BRATS2018(Dataset):
         with open(dataset_txt_path, 'r') as f:
             self.sample_list = [x.strip() for x in f.readlines()]
         
-        assert len(self.sample_list) * 4 == len(os.listdir(self.base_dir))
+        # assert len(self.sample_list) * 4 == len(os.listdir(self.base_dir))
         
     
     def __len__(self):
@@ -62,6 +62,8 @@ class ToTensor():
         sc, mask = sample
         
         sc = torch.from_numpy(sc).float()
+        sc = sc.unsqueeze(dim=0)
+        
         mask = torch.from_numpy(mask).float()
         
         return sc, mask

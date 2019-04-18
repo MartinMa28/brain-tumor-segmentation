@@ -1,9 +1,9 @@
-from unet_utils import InConv, DownSamp, UpSamp, OutConv
+from .unet_utils import InConv, DownSamp, UpSamp, OutConv
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from vgg_encoder import VGGEncoder
+from .vgg_encoder import VGGEncoder
 
 class UNet(nn.Module):
     def __init__(self, n_channels, n_classes):

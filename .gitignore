@@ -2,3 +2,4 @@ scores/
 logs/
 .vscode/
 BRATS2018/
+__pycache__

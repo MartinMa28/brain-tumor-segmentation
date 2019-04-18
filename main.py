@@ -6,18 +6,14 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+from models.fcn import VGGNet, FCN32s, FCN16s, FCN8s, FCNs, FCN8s_bilinear, FCN8sScaledBN, FCN8sScaledOGBN, FCN8sScaled
+from models.unet import UNet, UNetWithBilinear, UNetWithVGGEncoder
+from models.vgg_encoder import VGGEncoder
+from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor
 
-from fcn import VGGNet, FCN32s, FCN16s, FCN8s, FCNs, FCN8s_bilinear, FCN8sScaledBN, FCN8sScaledOGBN, FCN8sScaled
-from unet import UNet, UNetWithBilinear, UNetWithVGGEncoder
-from vgg_encoder import VGGEncoder
-from Cityscapes_loader import CityScapesDataset
-from CamVid_loader import CamVidDataset
-from VOC_loader import VOCSeg
-from VOC_Aug_loader import VOCSegAug
-from VOC_loader import RandomCrop, RandomHorizontalFlip, ToTensor, CenterCrop, NormalizeVOC
 from torchvision import transforms
 import copy
-from metrics import Evaluator
+from metrics.metrics import Evaluator
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -40,21 +36,21 @@ logger = logging.getLogger('main')
 
 
 # 20 classes and background for VOC segmentation
-n_classes = 20 + 1
-batch_size = 2
+n_classes = 2
+batch_size = 4
 epochs = 3
-lr = 1e-4
+lr = 1e-2
 #momentum = 0
 w_decay = 1e-5
 step_size = 10
 gamma = 0.5
-configs = "FCNs-CrossEntropyLoss_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
+configs = "UNets-BRATS2018_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
 print('Configs: ')
 print(configs)
 
-data_set_type = sys.argv[1]
-if data_set_type not in ['VOC', 'VOCAug']:
-    raise ValueError('Only supports Pascal VOC and augmented Pascal VOC!')
+input_data_type = sys.argv[1]
+if input_data_type not in ['t1ce', 't2-flair']:
+    raise ValueError('Only supports scan types of t1ce or t2-flair')
 
 score_dir = os.path.join("scores", configs)
 if not os.path.exists(score_dir):
@@ -66,35 +62,31 @@ IU_scores    = np.zeros((epochs, n_classes))
 pixel_scores = np.zeros(epochs)
 # global variables
 
-def get_dataset_dataloader(data_set_type, batch_size):
-    data_transforms = {
-        'train': transforms.Compose([
-            RandomCrop(512),
-            RandomHorizontalFlip(),
+def get_dataset_dataloader(input_data_type, batch_size):
+    data_transforms = transforms.Compose([
             ToTensor(),
-            NormalizeVOC([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]),
-
-        'val': transforms.Compose([
-            CenterCrop(512),
-            ToTensor(),
-            NormalizeVOC([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            NormalizeBRATS()
         ])
-    }
     
-    if data_set_type == 'VOC':
+    if input_data_type == 't1ce':
         data_set = {
-            phase: VOCSeg('VOC/', '2012', image_set=phase, download=False,\
-            transform=data_transforms[phase]) 
+            phase: BRATS2018('./BRATS2018/',\
+                            data_set=phase,\
+                            seg_type='et',\
+                            transform=data_transforms)
             for phase in ['train', 'val']
-            }
-    elif data_set_type == 'VOCAug':
+        }
+    elif input_data_type == 't2-flair':
         data_set = {
-            phase: VOCSegAug('VOCAug/', data_set=phase, transform=data_transforms[phase])
+            phase: BRATS2018('./BRATS2018/',\
+                            data_set=phase,\
+                            scan_type='t2-flair',\
+                            seg_type='wt',\
+                            transform=data_transforms)
             for phase in ['train', 'val']
         }
     else:
-        raise ValueError('Dateset must be VOC or VOCAug!')
+        raise ValueError('Scan type must be t1ce or t2-flair!')
     
 
     data_loader = {
@@ -120,8 +112,9 @@ def get_fcn_model(num_classes, use_gpu):
     return fcn_model
 
 def get_unet_model(num_classes, use_gpu):
-    vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
-    unet = UNetWithVGGEncoder(vgg_model, num_classes)
+    # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
+    # unet = UNetWithVGGEncoder(vgg_model, num_classes)
+    unet = UNet(1, num_classes)
     if use_gpu:
         ts = time.time()
         unet = unet.cuda()
@@ -161,13 +154,13 @@ def pixelwise_acc(pred, target):
     return correct / total
 
 
-def train(data_set_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
-    model = get_fcn_model(num_classes, use_gpu)
+def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
+    model = get_unet_model(num_classes, use_gpu)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
-    data_set, data_loader = get_dataset_dataloader(data_set_type, batch_size)
+    data_set, data_loader = get_dataset_dataloader(input_data_type, batch_size)
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -175,7 +168,6 @@ def train(data_set_type, num_classes, batch_size, epochs, use_gpu, learning_rate
 
     epoch_loss = np.zeros((2, epochs))
     epoch_acc = np.zeros((2, epochs))
-    epoch_iou = np.zeros((2, epochs, num_classes))
     epoch_mean_iou = np.zeros((2, epochs))
     evaluator = Evaluator(num_classes)
 
@@ -219,11 +211,10 @@ def train(data_set_type, num_classes, batch_size, epochs, use_gpu, learning_rate
 
                 # computes loss and acc for current iteration
                 preds = torch.argmax(outputs, dim=1)
-                ious = iou(preds, targets, num_classes)
+                
                 
                 running_loss += loss * imgs.size(0)
                 running_acc += pixelwise_acc(preds, targets) * imgs.size(0)
-                running_iou[batch_ind, :] = ious
                 logger.debug('Batch {} running loss: {}'.format(batch_ind, running_loss))
 
                 # test the iou and pixelwise accuracy using evaluator
@@ -234,8 +225,7 @@ def train(data_set_type, num_classes, batch_size, epochs, use_gpu, learning_rate
             
             epoch_loss[phase_ind, epoch] = running_loss / len(data_set[phase])
             epoch_acc[phase_ind, epoch] = running_acc / len(data_set[phase])
-            epoch_iou[phase_ind, epoch] = np.nanmean(running_iou, axis=0)
-            epoch_mean_iou[phase_ind, epoch] = np.nanmean(epoch_iou[phase_ind, epoch])
+            epoch_mean_iou[phase_ind, epoch] = evaluator.Mean_Intersection_over_Union()
             
             logger.info('{} loss: {:.4f}, acc: {:.4f}, mean iou: {:.6f}'.format(phase,\
                 epoch_loss[phase_ind, epoch], epoch_acc[phase_ind, epoch],\
@@ -263,12 +253,11 @@ def train(data_set_type, num_classes, batch_size, epochs, use_gpu, learning_rate
     # save numpy results
     np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
     np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
-    np.save(os.path.join(score_dir, 'epoch_iou'), epoch_iou)
 
     return model
 
 if __name__ == "__main__":
-    model = train(data_set_type, n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    model = train(input_data_type, n_classes, batch_size, epochs, use_gpu, lr, w_decay)
     if use_gpu:
         logger.info('Saved model.module.state_dict')
         torch.save(model.module.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

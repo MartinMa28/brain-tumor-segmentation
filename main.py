@@ -229,7 +229,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
             epoch_class_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy_Class()
             epoch_mean_iou[phase_ind, epoch] = evaluator.Mean_Intersection_over_Union()
             
-            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:4.f}, mean iou: {:.6f}'.format(phase,\
+            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}, mean iou: {:.6f}'.format(phase,\
                 epoch_loss[phase_ind, epoch],\
                 epoch_acc[phase_ind, epoch],\
                 epoch_class_acc[phase_ind, epoch],\

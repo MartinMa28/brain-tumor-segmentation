@@ -221,7 +221,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                 
                 
                 running_loss += loss * imgs.size(0)
-                dice = dice_score(preds, targets).cpu().numpy()
+                dice = (dice_score(preds, targets) * imgs.size(0)).cpu().numpy()
                 running_dice_score = np.nansum([running_dice_score, dice], axis=0)
                 logger.debug('Batch {} running loss: {:.4f}, running dice score: {:.4f}'.format(batch_ind,\
                     running_loss,\

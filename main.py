@@ -153,6 +153,13 @@ def pixelwise_acc(pred, target):
     total   = (target == target).sum().to(torch.float32)
     return correct / total
 
+def dice_score(preds, targets):
+    preds_flat = preds.view(-1).float()
+    targets_flat = targets.view(-1).float()
+    
+    intersection = (preds_flat * targets_flat).sum()
+    
+    return (2. * intersection)/(preds_flat.sum() + targets_flat.sum())
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     model = get_unet_model(num_classes, use_gpu)
@@ -170,6 +177,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     epoch_acc = np.zeros((2, epochs))
     epoch_class_acc = np.zeros((2, epochs))
     epoch_mean_iou = np.zeros((2, epochs))
+    epoch_dice_score = np.zeros((2, epochs))
     evaluator = Evaluator(num_classes)
 
     for epoch in range(epochs):
@@ -187,16 +195,14 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
             
             evaluator.reset()
             running_loss = 0.0
-            running_acc = 0.0
+            running_dice_score = 0.0
             num_of_batches = math.ceil(len(data_set[phase]) / batch_size)
             running_iou = np.zeros((num_of_batches, num_classes))
             
             
             for batch_ind, batch in enumerate(data_loader[phase]):
                 imgs, targets = batch
-                imgs = Variable(imgs).float()
                 imgs = imgs.to(device)
-                targets = Variable(targets).type(torch.LongTensor)
                 targets = targets.to(device)
 
                 # zero the learnable parameters gradients
@@ -215,8 +221,11 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                 
                 
                 running_loss += loss * imgs.size(0)
-                running_acc += pixelwise_acc(preds, targets) * imgs.size(0)
-                logger.debug('Batch {} running loss: {}'.format(batch_ind, running_loss))
+                dice = dice_score(preds, targets).numpy()
+                running_dice_score = np.nansum([running_dice_score, dice], axis=0)
+                logger.debug('Batch {} running loss: {:.4f}, running dice score: {:.4f}'.format(batch_ind,\
+                    running_loss,\
+                    running_dice_score))
 
                 # test the iou and pixelwise accuracy using evaluator
                 preds = preds.cpu().numpy()
@@ -225,15 +234,17 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
             
             epoch_loss[phase_ind, epoch] = running_loss / len(data_set[phase])
+            epoch_dice_score[phase_ind, epoch] = running_dice_score / len(data_set[phase])
             epoch_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy()
             epoch_class_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy_Class()
             epoch_mean_iou[phase_ind, epoch] = evaluator.Mean_Intersection_over_Union()
             
-            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}, mean iou: {:.6f}'.format(phase,\
+            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}, mean iou: {:.4f}, mean dice score: {:.4f}'.format(phase,\
                 epoch_loss[phase_ind, epoch],\
                 epoch_acc[phase_ind, epoch],\
                 epoch_class_acc[phase_ind, epoch],\
-                epoch_mean_iou[phase_ind, epoch]))
+                epoch_mean_iou[phase_ind, epoch],\
+                epoch_dice_score[phase_ind, epoch]))
 
 
             if phase == 'val' and epoch_acc[phase_ind, epoch] > best_acc:
@@ -251,6 +262,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
     # save numpy results
     np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
+    np.save(os.path.join(score_dir, 'epoch_dice_score'), epoch_dice_score)
     np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
 
     return model

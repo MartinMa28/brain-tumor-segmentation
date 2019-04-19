@@ -37,7 +37,7 @@ logger = logging.getLogger('main')
 
 # 20 classes and background for VOC segmentation
 n_classes = 2
-batch_size = 4
+batch_size = 8
 epochs = 50
 lr = 1e-2
 #momentum = 0
@@ -213,9 +213,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
             
             for batch_ind, batch in enumerate(data_loader[phase]):
                 imgs, targets = batch
-                imgs = Variable(imgs).float()
                 imgs = imgs.to(device)
-                targets = Variable(targets).type(torch.LongTensor)
                 targets = targets.to(device)
 
                 # zero the learnable parameters gradients
@@ -276,6 +274,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     # save numpy results
     np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
     np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
+    np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
 
     return model
 

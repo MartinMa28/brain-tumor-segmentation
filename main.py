@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.autograd import Variable
@@ -15,7 +16,6 @@ from torchvision import transforms
 import copy
 from metrics.metrics import Evaluator
 
-from matplotlib import pyplot as plt
 import numpy as np
 import time
 import datetime
@@ -156,26 +156,43 @@ def pixelwise_acc(pred, target):
     return correct / total
 
 def dice_score(preds, targets):
-    preds_flat = preds.view(-1).float()
-    targets_flat = targets.view(-1).float()
+    num = preds.size(0)              # batch size
+    preds_flat = preds.view(num, -1).float()
+    targets_flat = targets.view(num, -1).float()
     
     intersection = (preds_flat * targets_flat).sum()
     
     return (2. * intersection)/(preds_flat.sum() + targets_flat.sum())
 
-def dice_coef_loss(preds, targets):
-    smooth = 1
+
+class SoftDiceLoss(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(SoftDiceLoss, self).__init__()
     
-    preds_flat = preds.view(-1).float()
-    targets_flat = targets.view(-1).float()
+    def dice_coef(self, preds, targets):
+        smooth = 1
+        num = preds.size(0)              # batch size
+        preds_flat = preds.view(num, -1).float()
+        targets_flat = targets.view(num, -1).float()
 
-    intersection = (preds_flat * targets_flat).sum()
+        intersection = (preds_flat * targets_flat).sum()
 
-    return 1 - ((2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth))
+        return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth)
+
+    def forward(self, logits, targets):
+        probs = torch.sigmoid(logits)
+        num = targets.size(0)
+
+        score = self.dice_coef(probs, targets)
+        score = 1 - score / num
+
+        return score
+
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
-    model = get_unet_model(num_classes, use_gpu)
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
+    model = get_unet_model(1, use_gpu)
+    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
+    criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
@@ -221,16 +238,13 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(imgs)
-                    preds = torch.argmax(outputs, dim=1).float()
-                    preds.requires_grad = True
-                    loss = dice_coef_loss(preds, targets)
-                    
+                    loss = criterion(outputs, targets)
                     
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
 
-                                
+                preds = (outputs > 0.5).squeeze()
                 running_loss += loss * imgs.size(0)
                 dice = (dice_score(preds, targets) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)

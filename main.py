@@ -37,7 +37,7 @@ logger = logging.getLogger('main')
 
 # 20 classes and background for VOC segmentation
 n_classes = 2
-batch_size = 2
+batch_size = 8
 epochs = 50
 lr = 5e-3
 #momentum = 0

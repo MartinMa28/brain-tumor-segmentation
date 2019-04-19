@@ -253,9 +253,9 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                     running_dice))
 
                 # test the iou and pixelwise accuracy using evaluator
-                np_preds = preds.int().cpu().detach().numpy()
-                np_targets = targets.cpu().numpy()
-                evaluator.add_batch(np_targets, np_preds)
+                preds = preds.cpu().numpy()
+                targets = targets.cpu().numpy()
+                evaluator.add_batch(targets, preds)
 
             
             epoch_loss[phase_ind, epoch] = running_loss / len(data_set[phase])

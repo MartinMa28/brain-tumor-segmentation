@@ -181,10 +181,9 @@ class SoftDiceLoss(nn.Module):
 
     def forward(self, logits, targets):
         probs = torch.sigmoid(logits)
-        num = targets.size(0)
 
         score = self.dice_coef(probs, targets)
-        score = 1 - score / num
+        score = 1 - score
 
         return score
 

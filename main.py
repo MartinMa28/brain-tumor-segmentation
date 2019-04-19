@@ -37,7 +37,7 @@ logger = logging.getLogger('main')
 
 # 20 classes and background for VOC segmentation
 n_classes = 2
-batch_size = 8
+batch_size = 4
 epochs = 50
 lr = 5e-3
 #momentum = 0
@@ -149,8 +149,10 @@ def iou(pred, target, num_classes):
     return ious.reshape((1, num_classes))
 
 def pixelwise_acc(pred, target):
-    correct = (pred == target).sum().to(torch.float32)
-    total   = (target == target).sum().to(torch.float32)
+    pred = pred.float()
+    target = target.float()
+    correct = (pred == target).sum()
+    total   = (target == target).sum()
     return correct / total
 
 def dice_score(preds, targets):
@@ -173,7 +175,7 @@ def dice_coef_loss(preds, targets):
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     model = get_unet_model(num_classes, use_gpu)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
@@ -205,7 +207,6 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
             
             evaluator.reset()
             running_loss = 0.0
-            running_acc = 0.0
             running_dice = 0.0
             num_of_batches = math.ceil(len(data_set[phase]) / batch_size)
             
@@ -222,28 +223,27 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(imgs)
-                    loss = criterion(outputs, targets)
+                    preds = torch.argmax(outputs, dim=1).float()
+                    preds.requires_grad = True
+                    loss = dice_coef_loss(preds, targets)
+                    
                     
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
 
-                # computes loss and acc for current iteration
-                preds = torch.argmax(outputs, dim=1)
-                
-                
+                                
                 running_loss += loss * imgs.size(0)
-                running_acc += pixelwise_acc(preds, targets) * imgs.size(0)
-                dice = (dice_score(preds, targets) * imgs.size(0)).cpu().numpy()
+                dice = (dice_score(preds, targets) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)
                 logger.debug('Batch {} running loss: {:.4f}, dice score: {:.4f}'.format(batch_ind,\
                     running_loss,\
                     running_dice))
 
                 # test the iou and pixelwise accuracy using evaluator
-                preds = preds.cpu().numpy()
-                targets = targets.cpu().numpy()
-                evaluator.add_batch(targets, preds)
+                np_preds = preds.int().cpu().detach().numpy()
+                np_targets = targets.cpu().numpy()
+                evaluator.add_batch(np_targets, np_preds)
 
             
             epoch_loss[phase_ind, epoch] = running_loss / len(data_set[phase])

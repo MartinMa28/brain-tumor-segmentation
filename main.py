@@ -244,7 +244,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                         loss.backward()
                         optimizer.step()
 
-                preds = (outputs > 0.5).squeeze()
+                preds = (torch.sigmoid(outputs) > 0.5).squeeze()
                 running_loss += loss * imgs.size(0)
                 dice = (dice_score(preds, targets) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)

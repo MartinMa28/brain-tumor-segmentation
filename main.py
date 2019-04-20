@@ -170,14 +170,15 @@ class SoftDiceLoss(nn.Module):
         super(SoftDiceLoss, self).__init__()
     
     def dice_coef(self, preds, targets):
-        smooth = 1
+        smooth = 0
+        eps = 1e-8
         num = preds.size(0)              # batch size
         preds_flat = preds.view(num, -1).float()
         targets_flat = targets.view(num, -1).float()
 
         intersection = (preds_flat * targets_flat).sum()
 
-        return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth)
+        return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth + eps)
 
     def forward(self, logits, targets):
         probs = torch.sigmoid(logits)

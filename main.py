@@ -37,7 +37,7 @@ logger = logging.getLogger('main')
 
 # 20 classes and background for VOC segmentation
 n_classes = 2
-batch_size = 8
+batch_size = 4
 epochs = 50
 lr = 1e-2
 #momentum = 0
@@ -176,20 +176,21 @@ class SoftDiceLoss(nn.Module):
         targets_flat = targets.view(num, -1).float()
 
         intersection = (preds_flat * targets_flat).sum()
+        logger.debug(f'intersection: {intersection}, sum_preds: {preds_flat.sum()}, sum_targets: {targets_flat.sum()}')
 
         return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth)
 
     def forward(self, logits, targets):
-        probs = torch.sigmoid(logits)
+        probs = F.softmax(logits, dim=1)
 
-        score = self.dice_coef(probs, targets)
+        score = self.dice_coef(probs[:, 1, :, :], targets)
         score = 1 - score
 
         return score
 
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
-    model = get_unet_model(1, use_gpu)
+    model = get_unet_model(num_classes, use_gpu)
     # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
     criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
@@ -243,7 +244,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                         loss.backward()
                         optimizer.step()
 
-                preds = (torch.sigmoid(outputs) > 0.5).squeeze(dim=1)
+                preds = torch.argmax(F.softmax(outputs, dim=1), dim=1)
                 running_loss += loss * imgs.size(0)
                 dice = (dice_score(preds, targets) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)

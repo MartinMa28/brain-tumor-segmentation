@@ -22,6 +22,7 @@ import datetime
 import sys
 import os
 import math
+import signal
 
 import logging
 from logging.config import fileConfig
@@ -161,6 +162,10 @@ def dice_score(preds, targets):
     targets_flat = targets.view(num, -1).float()
     
     intersection = (preds_flat * targets_flat).sum()
+
+    logger.debug('-Dice score- intersection: {:.2f}, preds: {:.2f}, targets: {:.2f}'.format(intersection,\
+        preds_flat.sum(),\
+        targets_flat.sum()))
     
     return (2. * intersection)/(preds_flat.sum() + targets_flat.sum())
 
@@ -170,13 +175,15 @@ class SoftDiceLoss(nn.Module):
         super(SoftDiceLoss, self).__init__()
     
     def dice_coef(self, preds, targets):
-        smooth = 0.01
+        smooth = 0.
         num = preds.size(0)              # batch size
         preds_flat = preds.view(num, -1).float()
         targets_flat = targets.view(num, -1).float()
 
         intersection = (preds_flat * targets_flat).sum()
-        logger.debug(f'intersection: {intersection}, sum_preds: {preds_flat.sum()}, sum_targets: {targets_flat.sum()}')
+        logger.debug('intersection: {:.4f}, sum_preds: {:.4f}, sum_targets: {:.4f}'.format(intersection,\
+            preds_flat.sum(),\
+            targets_flat.sum()))
 
         return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth)
 
@@ -208,6 +215,26 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     epoch_mean_iou = np.zeros((2, epochs))
     epoch_mean_dice = np.zeros((2, epochs))
     evaluator = Evaluator(num_classes)
+
+    def term_int_handler(signal_num, frame):
+        np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
+        np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
+        np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
+
+        model.load_state_dict(best_model_wts)
+
+        if use_gpu:
+            logger.info('Saved model.module.state_dict')
+            torch.save(model.module.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
+        else:
+            logger.info('Saved model.state_dict')
+            torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
+        
+        quit()
+
+    signal.signal(signal.SIGINT, term_int_handler)
+    signal.signal(signal.SIGTERM, term_int_handler)
+    
 
     for epoch in range(epochs):
         logger.info('Epoch {}/{}'.format(epoch + 1, epochs))
@@ -275,6 +302,14 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
             if phase == 'val' and epoch_acc[phase_ind, epoch] > best_acc:
                 best_acc = epoch_acc[phase_ind, epoch]
                 best_model_wts = copy.deepcopy(model.state_dict())
+            
+            if phase == 'val' and epoch % 10 == 0:
+                if use_gpu:
+                    logger.info(f'Saved model.module.state_dict in epoch {epoch}')
+                    torch.save(model.module.state_dict(), os.path.join(score_dir, f'epoch{epoch}_model.pt'))
+                else:
+                    logger.info(f'Saved model.state_dict in epoch {epoch}')
+                    torch.save(model.state_dict(), os.path.join(score_dir, f'epoch{epoch}_model.pt'))
         
         print()
     

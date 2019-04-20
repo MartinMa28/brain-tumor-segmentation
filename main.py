@@ -170,15 +170,14 @@ class SoftDiceLoss(nn.Module):
         super(SoftDiceLoss, self).__init__()
     
     def dice_coef(self, preds, targets):
-        smooth = 0
-        eps = 1e-8
+        smooth = 0.01
         num = preds.size(0)              # batch size
         preds_flat = preds.view(num, -1).float()
         targets_flat = targets.view(num, -1).float()
 
         intersection = (preds_flat * targets_flat).sum()
 
-        return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth + eps)
+        return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth)
 
     def forward(self, logits, targets):
         probs = torch.sigmoid(logits)
@@ -244,7 +243,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                         loss.backward()
                         optimizer.step()
 
-                preds = (torch.sigmoid(outputs) > 0.5).squeeze()
+                preds = (torch.sigmoid(outputs) > 0.5).squeeze(dim=1)
                 running_loss += loss * imgs.size(0)
                 dice = (dice_score(preds, targets) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)

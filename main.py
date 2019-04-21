@@ -157,6 +157,7 @@ def pixelwise_acc(pred, target):
     return correct / total
 
 def dice_score(preds, targets):
+    smooth = 5e-3
     num = preds.size(0)              # batch size
     preds_flat = preds.view(num, -1).float()
     targets_flat = targets.view(num, -1).float()
@@ -167,7 +168,7 @@ def dice_score(preds, targets):
         preds_flat.sum(),\
         targets_flat.sum()))
     
-    return (2. * intersection)/(preds_flat.sum() + targets_flat.sum())
+    return (2. * intersection + smooth)/(preds_flat.sum() + targets_flat.sum() + smooth)
 
 
 class SoftDiceLoss(nn.Module):
@@ -175,7 +176,7 @@ class SoftDiceLoss(nn.Module):
         super(SoftDiceLoss, self).__init__()
     
     def dice_coef(self, preds, targets):
-        smooth = 0.
+        smooth = 5e-3
         num = preds.size(0)              # batch size
         preds_flat = preds.view(num, -1).float()
         targets_flat = targets.view(num, -1).float()

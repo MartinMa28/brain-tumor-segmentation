@@ -63,7 +63,7 @@ class ToTensor():
         sc, mask = sample
         
         sc = torch.from_numpy(sc).float()
-        mask = torch.from_numpy(mask).float()
+        mask = torch.from_numpy(mask).to(torch.int64)
         
         return sc, mask
     

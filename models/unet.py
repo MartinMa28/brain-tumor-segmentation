@@ -100,21 +100,21 @@ class UNetWithVGGEncoder(nn.Module):
         
 if __name__ == "__main__":
     # dimension-match tests
-    batch_size, n_classes, height, width = 4, 21, 224, 224
-    inputs = torch.autograd.Variable(torch.randn(batch_size, 3, height, width))
-    # unet = UNet(3, n_classes)
-    # outputs = unet(inputs)
-    vgg_enc = VGGEncoder()
-    unet = UNetWithVGGEncoder(vgg_enc, 21)
+    batch_size, n_classes, height, width = 4, 2, 240, 240
+    inputs = torch.randn(batch_size, 3, height, width)
+    unet = UNet(3, n_classes)
     outputs = unet(inputs)
+    # vgg_enc = VGGEncoder()
+    # unet = UNetWithVGGEncoder(vgg_enc, 21)
+    # outputs = unet(inputs)
     assert outputs.size() == torch.Size([batch_size, n_classes, height, width])
     
     print('pass the dimension check')
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(unet.parameters(), lr=1e-4)
-    inputs = torch.autograd.Variable(torch.randn(batch_size, 3, height, width))
-    targets = torch.autograd.Variable(torch.randint(low=0, high=21, size=(batch_size, height, width)), requires_grad=False)
+    inputs = torch.randn(batch_size, 3, height, width)
+    targets = torch.randint(low=0, high=n_classes, size=(batch_size, height, width))
 
     for iter in range(10):
         optimizer.zero_grad()
@@ -123,5 +123,3 @@ if __name__ == "__main__":
         loss.backward()
         print('iter{}, loss = {}'.format(iter, loss.data.item()))
         optimizer.step()
-
-

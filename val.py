@@ -17,7 +17,7 @@ from models.unet import UNet
 def validate(state_dict_path, use_gpu, device):
     model = UNet(n_channels=1, n_classes=2)
     model.load_state_dict(torch.load(state_dict_path, map_location='cpu' if not use_gpu else device))
-
+    model.to(device)
     val_transforms = transforms.Compose([
         ToTensor(), 
         NormalizeBRATS()])
@@ -36,7 +36,7 @@ def validate(state_dict_path, use_gpu, device):
         imgs, targets = batch
         imgs = imgs.to(device)
         targets = targets.to(device)
-
+        
         model.eval()
 
         with torch.no_grad():

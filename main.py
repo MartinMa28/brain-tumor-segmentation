@@ -321,7 +321,6 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
     # save numpy results
     np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
-    np.save(os.path.join(score_dir, 'epoch_dice_score'), epoch_dice_score)
     np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
     np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
 

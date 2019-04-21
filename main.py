@@ -40,7 +40,7 @@ logger = logging.getLogger('main')
 n_classes = 2
 batch_size = 4
 epochs = 50
-lr = 1e-2
+lr = 5e-3
 #momentum = 0
 w_decay = 1e-5
 step_size = 5
@@ -59,8 +59,6 @@ if not os.path.exists(score_dir):
 
 use_gpu = torch.cuda.is_available()
 device = torch.device('cuda:0' if use_gpu else 'cpu')
-IU_scores    = np.zeros((epochs, n_classes))
-pixel_scores = np.zeros(epochs)
 # global variables
 
 def get_dataset_dataloader(input_data_type, batch_size):
@@ -199,8 +197,8 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     model = get_unet_model(num_classes, use_gpu)
-    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
-    criterion = SoftDiceLoss()
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
+    # criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 

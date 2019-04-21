@@ -157,18 +157,6 @@ def pixelwise_acc(pred, target):
     return correct / total
 
 def dice_score(preds, targets):
-<<<<<<< HEAD
-    preds_flat = preds.view(-1).float()
-    targets_flat = targets.view(-1).float()
-    
-    intersection = (preds_flat * targets_flat).sum()
-    
-    return (2. * intersection)/(preds_flat.sum() + targets_flat.sum())
-
-def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
-    model = get_unet_model(num_classes, use_gpu)
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
-=======
     smooth = 5e-3
     num = preds.size(0)              # batch size
     preds_flat = preds.view(num, -1).float()
@@ -213,7 +201,6 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     model = get_unet_model(num_classes, use_gpu)
     # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
     criterion = SoftDiceLoss()
->>>>>>> dice_coef_loss
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
@@ -227,11 +214,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     epoch_acc = np.zeros((2, epochs))
     epoch_class_acc = np.zeros((2, epochs))
     epoch_mean_iou = np.zeros((2, epochs))
-<<<<<<< HEAD
-    epoch_dice_score = np.zeros((2, epochs))
-=======
     epoch_mean_dice = np.zeros((2, epochs))
->>>>>>> dice_coef_loss
     evaluator = Evaluator(num_classes)
 
     def term_int_handler(signal_num, frame):
@@ -269,11 +252,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
             
             evaluator.reset()
             running_loss = 0.0
-<<<<<<< HEAD
-            running_dice_score = 0.0
-=======
             running_dice = 0.0
->>>>>>> dice_coef_loss
             num_of_batches = math.ceil(len(data_set[phase]) / batch_size)
             
             
@@ -295,19 +274,11 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
                 preds = torch.argmax(F.softmax(outputs, dim=1), dim=1)
                 running_loss += loss * imgs.size(0)
-<<<<<<< HEAD
-                dice = (dice_score(preds, targets) * imgs.size(0)).cpu().numpy()
-                running_dice_score = np.nansum([running_dice_score, dice], axis=0)
-                logger.debug('Batch {} running loss: {:.4f}, running dice score: {:.4f}'.format(batch_ind,\
-                    running_loss,\
-                    running_dice_score))
-=======
                 dice = (dice_score(preds, targets) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)
                 logger.debug('Batch {} running loss: {:.4f}, dice score: {:.4f}'.format(batch_ind,\
                     running_loss,\
                     running_dice))
->>>>>>> dice_coef_loss
 
                 # test the iou and pixelwise accuracy using evaluator
                 preds = preds.cpu().numpy()
@@ -316,29 +287,17 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
             
             epoch_loss[phase_ind, epoch] = running_loss / len(data_set[phase])
-<<<<<<< HEAD
-            epoch_dice_score[phase_ind, epoch] = running_dice_score / len(data_set[phase])
-=======
             epoch_mean_dice[phase_ind, epoch] = running_dice / len(data_set[phase])
->>>>>>> dice_coef_loss
             epoch_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy()
             epoch_class_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy_Class()
             epoch_mean_iou[phase_ind, epoch] = evaluator.Mean_Intersection_over_Union()
             
-<<<<<<< HEAD
-            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}, mean iou: {:.4f}, mean dice score: {:.4f}'.format(phase,\
-=======
             logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}, mean iou: {:.6f}, mean dice score: {:.6f}'.format(phase,\
->>>>>>> dice_coef_loss
                 epoch_loss[phase_ind, epoch],\
                 epoch_acc[phase_ind, epoch],\
                 epoch_class_acc[phase_ind, epoch],\
                 epoch_mean_iou[phase_ind, epoch],\
-<<<<<<< HEAD
-                epoch_dice_score[phase_ind, epoch]))
-=======
                 epoch_mean_dice[phase_ind, epoch]))
->>>>>>> dice_coef_loss
 
 
             if phase == 'val' and epoch_acc[phase_ind, epoch] > best_acc:

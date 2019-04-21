@@ -169,7 +169,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
-    best_iou = 0.0
+    best_dice = 0.0
 
     epoch_loss = np.zeros((2, epochs))
     epoch_acc = np.zeros((2, epochs))
@@ -259,8 +259,8 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                 epoch_mean_dice[phase_ind, epoch]))
 
 
-            if phase == 'val' and epoch_mean_iou[phase_ind, epoch] > best_iou:
-                best_iou = epoch_mean_iou[phase_ind, epoch]
+            if phase == 'val' and epoch_mean_dice[phase_ind, epoch] > best_dice:
+                best_dice = epoch_mean_dice[phase_ind, epoch]
                 best_model_wts = copy.deepcopy(model.state_dict())
             
             if phase == 'val' and epoch % 10 == 0:

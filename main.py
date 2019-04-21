@@ -15,6 +15,7 @@ from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor
 from torchvision import transforms
 import copy
 from metrics.metrics import Evaluator
+from metrics.torch_seg_metrics import *
 
 import numpy as np
 import time
@@ -129,44 +130,6 @@ def time_stamp() -> str:
     time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
     return time_stamp
 
-# Borrows and modifies iou() from https://github.com/Kaixhin/FCN-semantic-segmentation/blob/master/main.py
-# Calculates class intersections over unions    
-def iou(pred, target, num_classes):
-    ious = np.zeros(num_classes)
-    for cl in range(num_classes):
-        pred_inds = (pred == cl)
-        target_inds = (target == cl)
-        intersection = pred_inds[target_inds].sum().to(torch.float32)
-        union = pred_inds.sum() + target_inds.sum() - intersection
-        union = union.to(torch.float32)
-        if union == 0:
-            # if there is no ground truth, do not include in evaluation
-            ious[cl] = float('nan')  
-        else:
-            ious[cl] = float(intersection) / max(union, 1)
-
-    return ious.reshape((1, num_classes))
-
-def pixelwise_acc(pred, target):
-    pred = pred.float()
-    target = target.float()
-    correct = (pred == target).sum()
-    total   = (target == target).sum()
-    return correct / total
-
-def dice_score(preds, targets):
-    smooth = 5e-3
-    num = preds.size(0)              # batch size
-    preds_flat = preds.view(num, -1).float()
-    targets_flat = targets.view(num, -1).float()
-    
-    intersection = (preds_flat * targets_flat).sum()
-
-    logger.debug('-Dice score- intersection: {:.2f}, preds: {:.2f}, targets: {:.2f}'.format(intersection,\
-        preds_flat.sum(),\
-        targets_flat.sum()))
-    
-    return (2. * intersection + smooth)/(preds_flat.sum() + targets_flat.sum() + smooth)
 
 
 class SoftDiceLoss(nn.Module):
@@ -272,7 +235,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
                 preds = torch.argmax(F.softmax(outputs, dim=1), dim=1)
                 running_loss += loss * imgs.size(0)
-                dice = (dice_score(preds, targets) * imgs.size(0))
+                dice = (dice_score(preds, targets, logger) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)
                 logger.debug('Batch {} running loss: {:.4f}, dice score: {:.4f}'.format(batch_ind,\
                     running_loss,\

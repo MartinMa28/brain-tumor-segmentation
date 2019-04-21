@@ -102,8 +102,8 @@ def get_fcn_model(num_classes, use_gpu):
 
     if use_gpu:
         ts = time.time()
-        vgg_model = vgg_model.cuda()
-        fcn_model = fcn_model.cuda()
+        vgg_model = vgg_model.to(device)
+        fcn_model = fcn_model.to(device)
         num_gpu = list(range(torch.cuda.device_count()))
         fcn_model = nn.DataParallel(fcn_model, device_ids=num_gpu)
         
@@ -111,13 +111,13 @@ def get_fcn_model(num_classes, use_gpu):
     
     return fcn_model
 
-def get_unet_model(num_classes, use_gpu):
+def get_unet_model(input_channels, num_classes, use_gpu):
     # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
     # unet = UNetWithVGGEncoder(vgg_model, num_classes)
-    unet = UNet(1, num_classes)
+    unet = UNet(input_channels, num_classes)
     if use_gpu:
         ts = time.time()
-        unet = unet.cuda()
+        unet = unet.to(device)
         num_gpu = list(range(torch.cuda.device_count()))
         unet = nn.DataParallel(unet, device_ids=num_gpu)
 
@@ -159,8 +159,8 @@ class SoftDiceLoss(nn.Module):
 
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
-    model = get_unet_model(num_classes, use_gpu)
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.9]).to(device))
+    model = get_unet_model(1 if input_data_type == 't1ce' else 2, num_classes, use_gpu)
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.2, 0.8]).to(device))
     # criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
@@ -187,10 +187,10 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
         if use_gpu:
             logger.info('Saved model.module.state_dict')
-            torch.save(model.module.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
+            torch.save(model.module.state_dict(), os.path.join(score_dir, 'terminated_model.pt'))
         else:
             logger.info('Saved model.state_dict')
-            torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
+            torch.save(model.state_dict(), os.path.join(score_dir, 'terminated_model.pt'))
         
         quit()
 
@@ -214,8 +214,6 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
             evaluator.reset()
             running_loss = 0.0
             running_dice = 0.0
-            num_of_batches = math.ceil(len(data_set[phase]) / batch_size)
-            
             
             for batch_ind, batch in enumerate(data_loader[phase]):
                 imgs, targets = batch

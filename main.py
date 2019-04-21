@@ -40,7 +40,7 @@ logger = logging.getLogger('main')
 n_classes = 2
 batch_size = 4
 epochs = 50
-lr = 1e-2
+lr = 7e-3
 #momentum = 0
 w_decay = 1e-5
 step_size = 5
@@ -59,8 +59,6 @@ if not os.path.exists(score_dir):
 
 use_gpu = torch.cuda.is_available()
 device = torch.device('cuda:0' if use_gpu else 'cpu')
-IU_scores    = np.zeros((epochs, n_classes))
-pixel_scores = np.zeros(epochs)
 # global variables
 
 def get_dataset_dataloader(input_data_type, batch_size):

@@ -51,8 +51,8 @@ print('Configs: ')
 print(configs)
 
 input_data_type = sys.argv[1]
-if input_data_type not in ['t1ce', 't2-flair']:
-    raise ValueError('Only supports scan types of t1ce or t2-flair')
+if input_data_type not in ['t1ce', 'flair']:
+    raise ValueError('Only supports scan types of t1ce or flair')
 
 score_dir = os.path.join("scores", configs)
 if not os.path.exists(score_dir):
@@ -76,17 +76,17 @@ def get_dataset_dataloader(input_data_type, batch_size):
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
-    elif input_data_type == 't2-flair':
+    elif input_data_type == 'flair':
         data_set = {
             phase: BRATS2018('./BRATS2018/',\
                             data_set=phase,\
-                            scan_type='t2-flair',\
+                            scan_type='flair',\
                             seg_type='wt',\
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
     else:
-        raise ValueError('Scan type must be t1ce or t2-flair!')
+        raise ValueError('Scan type must be t1ce or flair!')
     
 
     data_loader = {
@@ -159,9 +159,10 @@ class SoftDiceLoss(nn.Module):
 
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
-    model = get_unet_model(1 if input_data_type == 't1ce' else 2, num_classes, use_gpu)
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.35, 0.65]).to(device))
-    # criterion = SoftDiceLoss()
+    logger.info(f'Start training using {input_data_type} modal.')
+    model = get_unet_model(1, num_classes, use_gpu)
+    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
+    criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 

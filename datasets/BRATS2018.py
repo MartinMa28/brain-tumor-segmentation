@@ -9,7 +9,7 @@ import os
 
 
 class BRATS2018(Dataset):
-    def __init__(self, root_dir, data_set='train', seg_type='wt', scan_type='t1ce', transform=None):
+    def __init__(self, root_dir, data_set='train', seg_type='et', scan_type='t1ce', transform=None):
         """
         root_dir: the directory of BRATS2018 dataset
         data_set: train or val
@@ -40,9 +40,9 @@ class BRATS2018(Dataset):
             sc = np.expand_dims(sc, axis=0)
             assert sc.shape == (1, 240, 240)
         else:
-            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))
-            sc = np.array([sc[2], sc[3]])
-            assert sc.shape == (2, 240, 240)
+            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[3]
+            sc = np.expand_dims(sc, axis=0)
+            assert sc.shape == (1, 240, 240)
         
         mask = np.load(os.path.join(self.base_dir, self.sample_list[index] + f'_{self.seg_type}.npy'))
         

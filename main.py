@@ -104,8 +104,6 @@ def get_fcn_model(num_classes, use_gpu):
         ts = time.time()
         vgg_model = vgg_model.to(device)
         fcn_model = fcn_model.to(device)
-        num_gpu = list(range(torch.cuda.device_count()))
-        fcn_model = nn.DataParallel(fcn_model, device_ids=num_gpu)
         
         print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
     
@@ -118,8 +116,6 @@ def get_unet_model(input_channels, num_classes, use_gpu):
     if use_gpu:
         ts = time.time()
         unet = unet.to(device)
-        num_gpu = list(range(torch.cuda.device_count()))
-        unet = nn.DataParallel(unet, device_ids=num_gpu)
 
         print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
     
@@ -137,7 +133,7 @@ class SoftDiceLoss(nn.Module):
         super(SoftDiceLoss, self).__init__()
     
     def dice_coef(self, preds, targets):
-        smooth = 0.
+        smooth = 5e-3
         num = preds.size(0)              # batch size
         preds_flat = preds.view(num, -1).float()
         targets_flat = targets.view(num, -1).float()
@@ -186,12 +182,12 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
 
         model.load_state_dict(best_model_wts)
 
-        if use_gpu:
-            logger.info('Saved model.module.state_dict')
-            torch.save(model.module.state_dict(), os.path.join(score_dir, 'terminated_model.pt'))
-        else:
-            logger.info('Saved model.state_dict')
-            torch.save(model.state_dict(), os.path.join(score_dir, 'terminated_model.pt'))
+        logger.info('Got terminated and saved model.state_dict')
+        torch.save(model.state_dict(), os.path.join(score_dir, 'terminated_model.pt'))
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()
+        }, os.path.join(score_dir, 'terminated_model.tar'))
         
         quit()
 
@@ -265,12 +261,8 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                 best_model_wts = copy.deepcopy(model.state_dict())
             
             if phase == 'val' and (epoch + 1) % 10 == 0:
-                if use_gpu:
-                    logger.info(f'Saved model.module.state_dict in epoch {epoch + 1}')
-                    torch.save(model.module.state_dict(), os.path.join(score_dir, f'epoch{epoch + 1}_model.pt'))
-                else:
-                    logger.info(f'Saved model.state_dict in epoch {epoch + 1}')
-                    torch.save(model.state_dict(), os.path.join(score_dir, f'epoch{epoch + 1}_model.pt'))
+                logger.info(f'Saved model.state_dict in epoch {epoch + 1}')
+                torch.save(model.state_dict(), os.path.join(score_dir, f'epoch{epoch + 1}_model.pt'))
         
         print()
     
@@ -286,16 +278,17 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
     np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
 
-    return model
+    return model, optimizer
 
 if __name__ == "__main__":
-    model = train(input_data_type, n_classes, batch_size, epochs, use_gpu, lr, w_decay)
-    if use_gpu:
-        logger.info('Saved model.module.state_dict')
-        torch.save(model.module.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
-    else:
-        logger.info('Saved model.state_dict')
-        torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
+    model, optimizer = train(input_data_type, n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    
+    logger.info('Saved model.state_dict')
+    torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict()
+    }, os.path.join(score_dir, 'trained_model_checkpoint.tar'))
 
 
 

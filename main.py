@@ -64,8 +64,8 @@ device = torch.device('cuda:0' if use_gpu else 'cpu')
 
 def get_dataset_dataloader(input_data_type, batch_size):
     data_transforms = transforms.Compose([
-            ToTensor(),
-            NormalizeBRATS()
+            NormalizeBRATS(),
+            ToTensor()
         ])
     
     if input_data_type == 't1ce':
@@ -160,7 +160,7 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     model = get_unet_model(1 if input_data_type == 't1ce' else 2, num_classes, use_gpu)
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.2, 0.8]).to(device))
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.35, 0.65]).to(device))
     # criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
@@ -263,13 +263,13 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
                 best_dice = epoch_mean_dice[phase_ind, epoch]
                 best_model_wts = copy.deepcopy(model.state_dict())
             
-            if phase == 'val' and epoch % 10 == 0:
+            if phase == 'val' and (epoch + 1) % 10 == 0:
                 if use_gpu:
-                    logger.info(f'Saved model.module.state_dict in epoch {epoch}')
-                    torch.save(model.module.state_dict(), os.path.join(score_dir, f'epoch{epoch}_model.pt'))
+                    logger.info(f'Saved model.module.state_dict in epoch {epoch + 1}')
+                    torch.save(model.module.state_dict(), os.path.join(score_dir, f'epoch{epoch + 1}_model.pt'))
                 else:
-                    logger.info(f'Saved model.state_dict in epoch {epoch}')
-                    torch.save(model.state_dict(), os.path.join(score_dir, f'epoch{epoch}_model.pt'))
+                    logger.info(f'Saved model.state_dict in epoch {epoch + 1}')
+                    torch.save(model.state_dict(), os.path.join(score_dir, f'epoch{epoch + 1}_model.pt'))
         
         print()
     

@@ -75,12 +75,13 @@ class NormalizeBRATS():
     def __call__(self, sample):
         sc, mask = sample
         
-        mean = torch.mean(sc, dim=(1, 2), keepdim=True)
-        std = torch.std(sc)
+        mean = np.mean(sc, axis=(1, 2), keepdims=True)
+        std = np.std(sc, axis=(1, 2))
         
-        if std == 0:
-            sc = sc.sub(mean)
-        else:
-            sc = sc.sub(mean).div(std)
+        no_zero_std = np.array([1 if st == 0. else st for st in std])
+        no_zero_std = np.expand_dims(no_zero_std, axis=1)
+        no_zero_std = np.expand_dims(no_zero_std, axis=2)
         
-        return sc, mask   
+        sc = (sc - mean) / no_zero_std
+        
+        return sc, mask

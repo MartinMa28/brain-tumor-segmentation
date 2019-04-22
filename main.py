@@ -137,7 +137,7 @@ class SoftDiceLoss(nn.Module):
         super(SoftDiceLoss, self).__init__()
     
     def dice_coef(self, preds, targets):
-        smooth = 5e-3
+        smooth = 0.
         num = preds.size(0)              # batch size
         preds_flat = preds.view(num, -1).float()
         targets_flat = targets.view(num, -1).float()

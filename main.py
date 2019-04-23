@@ -38,9 +38,9 @@ logger = logging.getLogger('main')
 
 # 20 classes and background for VOC segmentation
 n_classes = 2
-batch_size = 4
+batch_size = 6
 epochs = 50
-lr = 1e-2
+lr = 5e-3
 #momentum = 0
 w_decay = 1e-5
 step_size = 5
@@ -63,7 +63,6 @@ device = torch.device('cuda:0' if use_gpu else 'cpu')
 
 def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     data_transforms = transforms.Compose([
-            ZeroPad(),
             NormalizeBRATS(),
             ToTensor()
         ])
@@ -156,8 +155,8 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     logger.info(f'Start training using {input_data_type} modal.')
-    # model = get_unet_model(1, num_classes, use_gpu)
-    model = get_fcn_model(num_classes, use_gpu)
+    model = get_unet_model(1, num_classes, use_gpu)
+    # model = get_fcn_model(num_classes, use_gpu)
     criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
     # criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
@@ -282,7 +281,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
     return model, optimizer
 
 if __name__ == "__main__":
-    model, optimizer = train(input_data_type, 'wt', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    model, optimizer = train(input_data_type, 'tc', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

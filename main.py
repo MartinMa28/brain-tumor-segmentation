@@ -5,10 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim import lr_scheduler
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from models.fcn import VGGNet, FCN32s, FCN16s, FCN8s, FCNs, FCN8s_bilinear, FCN8sScaledBN, FCN8sScaledOGBN, FCN8sScaled
-from models.unet import UNet, UNetWithBilinear, UNetWithVGGEncoder
+from models.fcn import VGGNet, FCN8sScaledBN, FCN8sScaled
+from models.unet import UNet
 from models.vgg_encoder import VGGEncoder
 from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor, ZeroPad
 
@@ -62,7 +61,7 @@ use_gpu = torch.cuda.is_available()
 device = torch.device('cuda:0' if use_gpu else 'cpu')
 # global variables
 
-def get_dataset_dataloader(input_data_type, batch_size):
+def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     data_transforms = transforms.Compose([
             ZeroPad(),
             NormalizeBRATS(),
@@ -73,7 +72,7 @@ def get_dataset_dataloader(input_data_type, batch_size):
         data_set = {
             phase: BRATS2018('./BRATS2018/',\
                             data_set=phase,\
-                            seg_type='et',\
+                            seg_type=seg_type,\
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
@@ -82,7 +81,7 @@ def get_dataset_dataloader(input_data_type, batch_size):
             phase: BRATS2018('./BRATS2018/',\
                             data_set=phase,\
                             scan_type='flair',\
-                            seg_type='wt',\
+                            seg_type=seg_type,\
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
@@ -155,7 +154,7 @@ class SoftDiceLoss(nn.Module):
         return score
 
 
-def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
+def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     logger.info(f'Start training using {input_data_type} modal.')
     # model = get_unet_model(1, num_classes, use_gpu)
     model = get_fcn_model(num_classes, use_gpu)
@@ -164,7 +163,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
-    data_set, data_loader = get_dataset_dataloader(input_data_type, batch_size)
+    data_set, data_loader = get_dataset_dataloader(input_data_type, seg_type, batch_size)
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -283,7 +282,7 @@ def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_ra
     return model, optimizer
 
 if __name__ == "__main__":
-    model, optimizer = train(input_data_type, n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    model, optimizer = train(input_data_type, 'wt', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

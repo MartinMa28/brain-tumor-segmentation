@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from models.fcn import VGGNet, FCN32s, FCN16s, FCN8s, FCNs, FCN8s_bilinear, FCN8sScaledBN, FCN8sScaledOGBN, FCN8sScaled
 from models.unet import UNet, UNetWithBilinear, UNetWithVGGEncoder
 from models.vgg_encoder import VGGEncoder
-from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor
+from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor, ZeroPad
 
 from torchvision import transforms
 import copy
@@ -64,6 +64,7 @@ device = torch.device('cuda:0' if use_gpu else 'cpu')
 
 def get_dataset_dataloader(input_data_type, batch_size):
     data_transforms = transforms.Compose([
+            ZeroPad(),
             NormalizeBRATS(),
             ToTensor()
         ])
@@ -97,12 +98,12 @@ def get_dataset_dataloader(input_data_type, batch_size):
     return data_set, data_loader
 
 def get_fcn_model(num_classes, use_gpu):
-    vgg_model = VGGNet(requires_grad=True, remove_fc=True, batch_norm=True)
+    vgg_model = VGGNet(pretrained=False, requires_grad=True, remove_fc=True, batch_norm=True)
     fcn_model = FCN8sScaledBN(pretrained_net=vgg_model, n_class=num_classes)
 
     if use_gpu:
         ts = time.time()
-        vgg_model = vgg_model.to(device)
+        # vgg_model = vgg_model.to(device)
         fcn_model = fcn_model.to(device)
         
         print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
@@ -156,9 +157,10 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     logger.info(f'Start training using {input_data_type} modal.')
-    model = get_unet_model(1, num_classes, use_gpu)
-    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
-    criterion = SoftDiceLoss()
+    # model = get_unet_model(1, num_classes, use_gpu)
+    model = get_fcn_model(num_classes, use_gpu)
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
+    # criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 

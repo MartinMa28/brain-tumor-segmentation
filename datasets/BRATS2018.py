@@ -85,3 +85,16 @@ class NormalizeBRATS():
         sc = (sc - mean) / no_zero_std
         
         return sc, mask
+
+
+class ZeroPad():
+    """
+    Zero-pad the scan and the mask to 256 * 256
+    """
+    def __call__(self, sample):
+        sc, mask = sample
+        
+        sc = np.pad(sc, pad_width=((0, 0), (8, 8), (8, 8)), mode='constant', constant_values=((0, 0), (0, 0), (0, 0)))
+        mask = np.pad(mask, pad_width=((8, 8), (8, 8)), mode='constant', constant_values=((0, 0), (0, 0)))
+        
+        return sc, mask

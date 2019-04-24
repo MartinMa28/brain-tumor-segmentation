@@ -154,7 +154,7 @@ class SoftDiceLoss(nn.Module):
 
 
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
-    logger.info(f'Start training using {input_data_type} modal.')
+    logger.info('Start training using {} modal.'.format(input_data_type))
     model = get_unet_model(1, 1, use_gpu)
     # model = get_fcn_model(num_classes, use_gpu)
     # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
@@ -262,8 +262,8 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
                 best_model_wts = copy.deepcopy(model.state_dict())
             
             if phase == 'val' and (epoch + 1) % 10 == 0:
-                logger.info(f'Saved model.state_dict in epoch {epoch + 1}')
-                torch.save(model.state_dict(), os.path.join(score_dir, f'epoch{epoch + 1}_model.pt'))
+                logger.info('Saved model.state_dict in epoch {}'.format(epoch + 1))
+                torch.save(model.state_dict(), os.path.join(score_dir, 'epoch{}_model.pt'.format(epoch + 1)))
         
         print()
     

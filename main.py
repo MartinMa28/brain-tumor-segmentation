@@ -145,9 +145,9 @@ class SoftDiceLoss(nn.Module):
         return (2. * intersection + smooth) / (preds_flat.sum() + targets_flat.sum() + smooth)
 
     def forward(self, logits, targets):
-        probs = F.softmax(logits, dim=1)
+        probs = torch.sigmoid(logits)
 
-        score = self.dice_coef(probs[:, 1, :, :], targets)
+        score = self.dice_coef(probs, targets)
         score = 1 - score
 
         return score
@@ -155,10 +155,10 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
     logger.info(f'Start training using {input_data_type} modal.')
-    model = get_unet_model(1, num_classes, use_gpu)
+    model = get_unet_model(1, 1, use_gpu)
     # model = get_fcn_model(num_classes, use_gpu)
-    criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
-    # criterion = SoftDiceLoss()
+    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
+    criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
@@ -228,7 +228,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
                         loss.backward()
                         optimizer.step()
 
-                preds = torch.argmax(F.softmax(outputs, dim=1), dim=1)
+                preds = torch.sigmoid(outputs) > 0.5
                 running_loss += loss * imgs.size(0)
                 dice = (dice_score(preds, targets, logger) * imgs.size(0))
                 running_dice = np.nansum([dice, running_dice], axis=0)
@@ -237,6 +237,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
                     running_dice))
 
                 # test the iou and pixelwise accuracy using evaluator
+                preds = torch.squeeze(preds, dim=1)
                 preds = preds.cpu().numpy()
                 targets = targets.cpu().numpy()
                 evaluator.add_batch(targets, preds)

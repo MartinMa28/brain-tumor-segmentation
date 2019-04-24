@@ -22,8 +22,8 @@ class BRATS2018(Dataset):
         self.seg_type = seg_type
         self.transform = transform
         
-        self.base_dir = os.path.join(self.root_dir, f'seg/{self.data_set}')
-        dataset_txt_path = os.path.join(self.root_dir, f'seg/{self.data_set}.txt')
+        self.base_dir = os.path.join(self.root_dir, 'seg/{}'.format(self.data_set))
+        dataset_txt_path = os.path.join(self.root_dir, 'seg/{}.txt'.format(self.data_set))
         with open(dataset_txt_path, 'r') as f:
             self.sample_list = [x.strip() for x in f.readlines()]
         
@@ -44,7 +44,7 @@ class BRATS2018(Dataset):
             sc = np.expand_dims(sc, axis=0)
             assert sc.shape == (1, 240, 240)
         
-        mask = np.load(os.path.join(self.base_dir, self.sample_list[index] + f'_{self.seg_type}.npy'))
+        mask = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_{}.npy'.format(self.seg_type)))
         
         sample = (sc, mask)
         

@@ -57,9 +57,9 @@ def _process_single_case(case_name, dataset_type='train'):
 
     # only keep the slices that are most likely to have tumor inside
     for i in range(20, 155):
-        print(f'processing {case_name}_{i}')
-        if os.path.exists(os.path.join(data_dir, case_name + f'_{i}_scan') + '.npy'):
-            print(f'skip {case_name}_{i}')
+        print('processing {}_{}'.format(case_name, i))
+        if os.path.exists(os.path.join(data_dir, case_name + '_{}_scan'.format(i)) + '.npy'):
+            print('skip {}_{}'.format(case_name, i))
             continue
         
         str_i = str(i).zfill(3)
@@ -67,18 +67,18 @@ def _process_single_case(case_name, dataset_type='train'):
         # 4 channels are t1, t1ce, t2, and flair respectively
         sc = np.array([t1[:, :, i], t1ce[:, :, i], t2[:, :, i], flair[:, :, i]])
         
-        np.save(os.path.join(data_dir, case_name + f'_{str_i}_scan'), sc)
+        np.save(os.path.join(data_dir, case_name + '_{}_scan'.format(str_i)), sc)
 
         wt = (seg[:, :, i] > 0).astype(np.uint8)                                     # whole tumor
         et = (seg[:, :, i] == 4).astype(np.uint8)                                    # enhancing tumor
         tc = np.logical_or(seg[:, :, i] == 1, seg[:, :, i] == 4).astype(np.uint8)    # tumor core
 
-        np.save(os.path.join(data_dir, case_name + f'_{str_i}_wt'), wt)
-        np.save(os.path.join(data_dir, case_name + f'_{str_i}_et'), et)
-        np.save(os.path.join(data_dir, case_name + f'_{str_i}_tc'), tc)
+        np.save(os.path.join(data_dir, case_name + '_{}_wt'.format(str_i)), wt)
+        np.save(os.path.join(data_dir, case_name + '_{}_et'.format(str_i)), et)
+        np.save(os.path.join(data_dir, case_name + '_{}_tc'.format(str_i)), tc)
 
         with open(data_list, 'a') as l:
-            l.writelines(case_name + f'_{str_i}\n')
+            l.writelines(case_name + '_{}\n'.format(str_i))
     
     return case_name + dataset_type
 

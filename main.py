@@ -40,11 +40,11 @@ logger = logging.getLogger('main')
 n_classes = 2
 batch_size = 6
 epochs = 50
-lr = 5e-3
+lr = 1e-4
 #momentum = 0
 w_decay = 1e-5
-step_size = 5
-gamma = 0.5
+step_size = 10
+gamma = 1.
 configs = "UNets-BRATS2018_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
 print('Configs: ')
 print(configs)
@@ -153,13 +153,19 @@ class SoftDiceLoss(nn.Module):
         return score
 
 
-def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay):
+def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Start training using {} modal.'.format(input_data_type))
     model = get_unet_model(1, 1, use_gpu)
     # model = get_fcn_model(num_classes, use_gpu)
     # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
     criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
+    
+    if pre_trained:
+        checkpoint = torch.load('scores/terminated_model.tar', map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
     data_set, data_loader = get_dataset_dataloader(input_data_type, seg_type, batch_size)
@@ -282,7 +288,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
     return model, optimizer
 
 if __name__ == "__main__":
-    model, optimizer = train(input_data_type, 'tc', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    model, optimizer = train(input_data_type, 'wt', n_classes, batch_size, epochs, use_gpu, lr, w_decay, pre_trained=True)
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

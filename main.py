@@ -50,7 +50,7 @@ print('Configs: ')
 print(configs)
 
 input_data_type = sys.argv[1]
-if input_data_type not in ['t1ce', 'flair']:
+if input_data_type not in ['t1ce', 'flair', 't2-flair']:
     raise ValueError('Only supports scan types of t1ce or flair')
 
 score_dir = os.path.join("scores", configs)
@@ -84,8 +84,17 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
+    elif input_data_type == 't2-flair':
+        data_set = {
+            phase: BRATS2018('./BRATS2018/',\
+                            data_set=phase,\
+                            scan_type='t2-flair',\
+                            seg_type=seg_type,\
+                            transform=data_transforms)
+            for phase in ['train', 'val']
+        }
     else:
-        raise ValueError('Scan type must be t1ce or flair!')
+        raise ValueError('Scan type must be t1ce, flair, or t2-flair!')
     
 
     data_loader = {
@@ -155,7 +164,7 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Start training using {} modal.'.format(input_data_type))
-    model = get_unet_model(1, 1, use_gpu)
+    model = get_unet_model(2, 1, use_gpu)
     # model = get_fcn_model(num_classes, use_gpu)
     # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
     criterion = SoftDiceLoss()
@@ -288,7 +297,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
     return model, optimizer
 
 if __name__ == "__main__":
-    model, optimizer = train(input_data_type, 'wt', n_classes, batch_size, epochs, use_gpu, lr, w_decay, pre_trained=True)
+    model, optimizer = train(input_data_type, 'wt', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

@@ -8,6 +8,7 @@ from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from models.fcn import VGGNet, FCN8sScaledBN, FCN8sScaled
 from models.unet import UNet
+from models.unet_resnet_encoder import UNetWithResnet50Encoder
 from models.vgg_encoder import VGGEncoder
 from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor, ZeroPad
 
@@ -38,7 +39,7 @@ logger = logging.getLogger('main')
 
 # 20 classes and background for VOC segmentation
 n_classes = 2
-batch_size = 6
+batch_size = 2
 epochs = 50
 lr = 1e-4
 #momentum = 0
@@ -63,6 +64,7 @@ device = torch.device('cuda:0' if use_gpu else 'cpu')
 
 def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     data_transforms = transforms.Compose([
+            ZeroPad(),
             NormalizeBRATS(),
             ToTensor()
         ])
@@ -120,7 +122,8 @@ def get_fcn_model(num_classes, use_gpu):
 def get_unet_model(input_channels, num_classes, use_gpu):
     # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
     # unet = UNetWithVGGEncoder(vgg_model, num_classes)
-    unet = UNet(input_channels, num_classes)
+    # unet = UNet(input_channels, num_classes)
+    unet = UNetWithResnet50Encoder(input_channels, num_classes)
     if use_gpu:
         ts = time.time()
         unet = unet.to(device)

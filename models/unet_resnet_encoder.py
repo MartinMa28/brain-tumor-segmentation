@@ -135,21 +135,21 @@ class UNetWithResnet50Encoder(nn.Module):
 
     def forward(self, x, with_output_feature_map=False):
         pre_pools = dict()
-        pre_pools[f"layer_0"] = x
+        pre_pools["layer_0"] = x
         x = self.input_block(x)
-        pre_pools[f"layer_1"] = x
+        pre_pools["layer_1"] = x
         x = self.input_pool(x)
 
         for i, block in enumerate(self.down_blocks, 2):
             x = block(x)
             if i == (UNetWithResnet50Encoder.DEPTH - 1):
                 continue
-            pre_pools[f"layer_{i}"] = x
+            pre_pools["layer_{}".format(i)] = x
 
         x = self.bridge(x)
 
         for i, block in enumerate(self.up_blocks, 1):
-            key = f"layer_{UNetWithResnet50Encoder.DEPTH - 1 - i}"
+            key = "layer_{}".format(UNetWithResnet50Encoder.DEPTH - 1 - i)
             x = block(x, pre_pools[key])
         output_feature_map = x
         x = self.out(x)

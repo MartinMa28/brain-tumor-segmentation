@@ -197,6 +197,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
         np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
         np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
         np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
+        np.save(os.path.join(score_dir, 'epoch_loss'), epoch_loss)
 
         model.load_state_dict(best_model_wts)
 
@@ -296,6 +297,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
     np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
     np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
     np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
+    np.save(os.path.join(score_dir, 'epoch_loss'), epoch_loss)
 
     return model, optimizer
 

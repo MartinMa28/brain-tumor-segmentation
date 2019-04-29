@@ -13,6 +13,7 @@ class BRATS2018(Dataset):
         """
         root_dir: the directory of BRATS2018 dataset
         data_set: train or val
+        scan_type: t1ce, flair or t2-flair
         seg_type: wt->whole tumor, et->enhancing tumor, tc->tumor core
         transform: PyTorch transformations
         """
@@ -55,6 +56,47 @@ class BRATS2018(Dataset):
             sample = self.transform(sample)
         
         return sample
+
+class BRATS2018Validation(Dataset):
+    def __init__(self, root_dir, scan_type='t1ce', data_set='val', transform=None):
+        """
+        root_dir: the directory of BRATS2018 dataset
+        data_set: val
+        scan_type: t1ce, flair or t2-flair
+        transform: PyTorch transformations
+        """
+        self.root_dir = os.path.expanduser(root_dir)
+        self.data_set = data_set
+        self.scan_type = scan_type
+        self.transform = transform
+
+        self.base_dir = os.path.join(self.root_dir, 'seg/{}'.format(self.data_set))
+        dataset_txt_path = os.path.join(self.root_dir, 'seg/{}.txt'.format(self.data_set))
+        with open(dataset_txt_path, 'r') as f:
+            self.scan_list = [x.strip() for x in f.readlines()]
+
+    
+    def __len__(self):
+        return len(self.scan_list)
+
+    
+    def __getitem__(self, index):
+        if self.scan_type == 't1ce':
+            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[1]
+            sc = np.expand_dims(sc, axis=0)
+            assert sc.shape == (1, 240, 240)
+        elif self.scan_type == 'flair':
+            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[3]
+            sc = np.expand_dims(sc, axis=0)
+            assert sc.shape == (1, 240, 240)
+        else:
+            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[2:]
+            assert sc.shape == (2, 240, 240)
+
+        if self.transform is not None:
+            sc = self.transform(sc)
+
+        return sc
 
 
 # transforms
@@ -101,3 +143,38 @@ class ZeroPad():
         mask = np.pad(mask, pad_width=((8, 8), (8, 8)), mode='constant', constant_values=((0, 0), (0, 0)))
         
         return sc, mask
+
+
+class ToTensorVal():
+    """
+    Convert ndarray samples to Tensors
+    """
+    def __call__(self, sc):    
+        return torch.from_numpy(sc).float()
+
+
+class NormalizeBRATSVal():
+    """
+    Subtract the mean and divide by the standard deviation
+    """
+    def __call__(self, sc):
+        mean = np.mean(sc, axis=(1, 2), keepdims=True)
+        std = np.std(sc, axis=(1, 2))
+        
+        no_zero_std = np.array([1 if st == 0. else st for st in std])
+        no_zero_std = np.expand_dims(no_zero_std, axis=1)
+        no_zero_std = np.expand_dims(no_zero_std, axis=2)
+        
+        sc = (sc - mean) / no_zero_std
+        
+        return sc
+
+
+class ZeroPadVal():
+    """
+    Zero-pad the scan and the mask to 256 * 256
+    """
+    def __call__(self, sc):    
+        sc = np.pad(sc, pad_width=((0, 0), (8, 8), (8, 8)), mode='constant', constant_values=((0, 0), (0, 0), (0, 0)))
+        
+        return sc

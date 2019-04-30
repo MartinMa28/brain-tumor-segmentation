@@ -82,15 +82,15 @@ class BRATS2018Validation(Dataset):
     
     def __getitem__(self, index):
         if self.scan_type == 't1ce':
-            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[1]
+            sc = np.load(os.path.join(self.base_dir, self.scan_list[index] + '_scan.npy'))[1]
             sc = np.expand_dims(sc, axis=0)
             assert sc.shape == (1, 240, 240)
         elif self.scan_type == 'flair':
-            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[3]
+            sc = np.load(os.path.join(self.base_dir, self.scan_list[index] + '_scan.npy'))[3]
             sc = np.expand_dims(sc, axis=0)
             assert sc.shape == (1, 240, 240)
         else:
-            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[2:]
+            sc = np.load(os.path.join(self.base_dir, self.scan_list[index] + '_scan.npy'))[2:]
             assert sc.shape == (2, 240, 240)
 
         if self.transform is not None:

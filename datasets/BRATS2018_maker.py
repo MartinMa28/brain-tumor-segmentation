@@ -73,6 +73,7 @@ def _process_single_case(case_name, dataset_type='train'):
         et = (seg[:, :, i] == 4).astype(np.uint8)                                    # enhancing tumor
         tc = np.logical_or(seg[:, :, i] == 1, seg[:, :, i] == 4).astype(np.uint8)    # tumor core
         seg_i = seg[:, :, i].astype(np.uint8)
+        seg_i = seg_i + (seg_i == 4).astype(np.uint8) * (3 * np.ones((seg_i.shape[0], seg_i.shape[1])) - seg_i)
 
         np.save(os.path.join(data_dir, case_name + '_{}_wt'.format(str_i)), wt)
         np.save(os.path.join(data_dir, case_name + '_{}_et'.format(str_i)), et)
@@ -94,7 +95,7 @@ def process_validating_case(case_name):
 if __name__ == "__main__":
     training_rate = 0.85
     case_list = sorted(os.listdir('./BRATS2018/HGG/'))
-    subset_list = case_list[:]
+    subset_list = case_list[:100]
     training_num = int(len(subset_list) * training_rate)
     train_list = subset_list[:training_num]
     val_list = subset_list[training_num:]

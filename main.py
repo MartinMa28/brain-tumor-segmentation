@@ -38,9 +38,9 @@ logger = logging.getLogger('main')
 
 
 # 20 classes and background for VOC segmentation
-n_classes = 2
+n_classes = 4
 batch_size = 2
-epochs = 50
+epochs = 10
 lr = 1e-4
 #momentum = 0
 w_decay = 1e-5
@@ -51,8 +51,8 @@ print('Configs: ')
 print(configs)
 
 input_data_type = sys.argv[1]
-if input_data_type not in ['t1ce', 'flair', 't2-flair']:
-    raise ValueError('Only supports scan types of t1ce or flair')
+if input_data_type not in ['t1ce', 'flair', 't2-flair', 'seg']:
+    raise ValueError('Only supports scan types of t1ce, flair, t2-flair or seg')
 
 score_dir = os.path.join("scores", configs)
 if not os.path.exists(score_dir):
@@ -64,7 +64,6 @@ device = torch.device('cuda:0' if use_gpu else 'cpu')
 
 def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     data_transforms = transforms.Compose([
-            ZeroPad(),
             NormalizeBRATS(),
             ToTensor()
         ])
@@ -95,8 +94,17 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
+    elif input_data_type == 'seg':
+        data_set = {
+            phase: BRATS2018('./BRATS2018/',\
+                            data_set=phase,\
+                            scan_type='seg',\
+                            seg_type=seg_type,\
+                            transform=data_transforms)
+            for phase in ['train', 'val']
+        }
     else:
-        raise ValueError('Scan type must be t1ce, flair, or t2-flair!')
+        raise ValueError('Scan type must be t1ce, flair, t2-flair, or seg!')
     
 
     data_loader = {
@@ -122,8 +130,8 @@ def get_fcn_model(num_classes, use_gpu):
 def get_unet_model(input_channels, num_classes, use_gpu):
     # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
     # unet = UNetWithVGGEncoder(vgg_model, num_classes)
-    # unet = UNet(input_channels, num_classes)
-    unet = UNetWithResnet50Encoder(input_channels, num_classes)
+    unet = UNet(input_channels, num_classes)
+    # unet = UNetWithResnet50Encoder(input_channels, num_classes)
     if use_gpu:
         ts = time.time()
         unet = unet.to(device)
@@ -167,10 +175,10 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Start training using {} modal.'.format(input_data_type))
-    model = get_unet_model(2, 1, use_gpu)
+    model = get_unet_model(4, num_classes, use_gpu)
     # model = get_fcn_model(num_classes, use_gpu)
-    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
-    criterion = SoftDiceLoss()
+    criterion = nn.CrossEntropyLoss()
+    # criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     
     if pre_trained:
@@ -184,19 +192,17 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
-    best_dice = 0.0
+    best_iou = 0.0
 
     epoch_loss = np.zeros((2, epochs))
     epoch_acc = np.zeros((2, epochs))
     epoch_class_acc = np.zeros((2, epochs))
     epoch_mean_iou = np.zeros((2, epochs))
-    epoch_mean_dice = np.zeros((2, epochs))
     evaluator = Evaluator(num_classes)
 
     def term_int_handler(signal_num, frame):
         np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
         np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
-        np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
         np.save(os.path.join(score_dir, 'epoch_loss'), epoch_loss)
 
         model.load_state_dict(best_model_wts)
@@ -247,13 +253,10 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
                         loss.backward()
                         optimizer.step()
 
-                preds = torch.sigmoid(outputs) > 0.5
+                preds = torch.argmax(F.softmax(outputs, dim=1), dim=1, keepdim=True)
                 running_loss += loss * imgs.size(0)
-                dice = (dice_score(preds, targets, logger) * imgs.size(0))
-                running_dice = np.nansum([dice, running_dice], axis=0)
-                logger.debug('Batch {} running loss: {:.4f}, dice score: {:.4f}'.format(batch_ind,\
-                    running_loss,\
-                    running_dice))
+                logger.debug('Batch {} running loss: {:.4f}'.format(batch_ind,\
+                    running_loss))
 
                 # test the iou and pixelwise accuracy using evaluator
                 preds = torch.squeeze(preds, dim=1)
@@ -263,21 +266,19 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
 
             
             epoch_loss[phase_ind, epoch] = running_loss / len(data_set[phase])
-            epoch_mean_dice[phase_ind, epoch] = running_dice / len(data_set[phase])
             epoch_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy()
             epoch_class_acc[phase_ind, epoch] = evaluator.Pixel_Accuracy_Class()
             epoch_mean_iou[phase_ind, epoch] = evaluator.Mean_Intersection_over_Union()
             
-            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}, mean iou: {:.6f}, mean dice score: {:.6f}'.format(phase,\
+            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}, mean iou: {:.6f}'.format(phase,\
                 epoch_loss[phase_ind, epoch],\
                 epoch_acc[phase_ind, epoch],\
                 epoch_class_acc[phase_ind, epoch],\
-                epoch_mean_iou[phase_ind, epoch],\
-                epoch_mean_dice[phase_ind, epoch]))
+                epoch_mean_iou[phase_ind, epoch]))
 
 
-            if phase == 'val' and epoch_mean_dice[phase_ind, epoch] > best_dice:
-                best_dice = epoch_mean_dice[phase_ind, epoch]
+            if phase == 'val' and epoch_mean_iou[phase_ind, epoch] > best_iou:
+                best_iou = epoch_mean_iou[phase_ind, epoch]
                 best_model_wts = copy.deepcopy(model.state_dict())
             
             if phase == 'val' and (epoch + 1) % 10 == 0:
@@ -296,13 +297,12 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
     # save numpy results
     np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
     np.save(os.path.join(score_dir, 'epoch_mean_iou'), epoch_mean_iou)
-    np.save(os.path.join(score_dir, 'epoch_mean_dice'), epoch_mean_dice)
     np.save(os.path.join(score_dir, 'epoch_loss'), epoch_loss)
 
     return model, optimizer
 
 if __name__ == "__main__":
-    model, optimizer = train(input_data_type, 'wt', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    model, optimizer = train(input_data_type, 'seg', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))
@@ -310,7 +310,3 @@ if __name__ == "__main__":
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict()
     }, os.path.join(score_dir, 'trained_model_checkpoint.tar'))
-
-
-
-

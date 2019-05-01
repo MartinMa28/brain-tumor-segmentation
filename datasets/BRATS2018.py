@@ -44,9 +44,12 @@ class BRATS2018(Dataset):
             sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[3]
             sc = np.expand_dims(sc, axis=0)
             assert sc.shape == (1, 240, 240)
-        else:
+        elif self.scan_type == 't2-flair':
             sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))[2:]
             assert sc.shape == (2, 240, 240)
+        else:
+            sc = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_scan.npy'))
+            assert sc.shape == (4, 240, 240)
         
         mask = np.load(os.path.join(self.base_dir, self.sample_list[index] + '_{}.npy'.format(self.seg_type)))
         

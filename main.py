@@ -40,7 +40,7 @@ logger = logging.getLogger('main')
 # 20 classes and background for VOC segmentation
 n_classes = 2
 batch_size = 2
-epochs = 50
+epochs = 10
 lr = 1e-4
 #momentum = 0
 w_decay = 1e-5
@@ -122,8 +122,8 @@ def get_fcn_model(num_classes, use_gpu):
 def get_unet_model(input_channels, num_classes, use_gpu):
     # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
     # unet = UNetWithVGGEncoder(vgg_model, num_classes)
-    # unet = UNet(input_channels, num_classes)
-    unet = UNetWithResnet50Encoder(input_channels, num_classes)
+    unet = UNet(input_channels, num_classes, residual=True)
+    #unet = UNetWithResnet50Encoder(input_channels, num_classes)
     if use_gpu:
         ts = time.time()
         unet = unet.to(device)

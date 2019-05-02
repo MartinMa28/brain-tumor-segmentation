@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from torchvision.models.resnet import BasicBlock
 
 class _DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -22,9 +23,18 @@ class _DoubleConv(nn.Module):
         return outputs
 
 class InConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, residual=False):
         super(InConv, self).__init__()
-        self.conv = _DoubleConv(in_channels, out_channels)
+        if residual:
+            dimension_map = None
+            if not in_channels == out_channels:
+                dimension_map = nn.Sequential(
+                    nn.Conv2d(in_channels, out_channels, kernel_size=1),
+                    nn.BatchNorm2d(out_channels)
+                )
+            self.conv = BasicBlock(in_channels, out_channels, downsample=dimension_map)
+        else:
+            self.conv = _DoubleConv(in_channels, out_channels)
 
     def forward(self, x):
         outputs = self.conv(x)
@@ -33,12 +43,24 @@ class InConv(nn.Module):
 
 
 class DownSamp(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, residual=False):
         super(DownSamp, self).__init__()
-        self.down_samp = nn.Sequential(
-            nn.MaxPool2d(2),
-            _DoubleConv(in_channels, out_channels)
-        )
+        if residual:
+            dimension_map = None
+            if not in_channels == out_channels:
+                dimension_map = nn.Sequential(
+                    nn.Conv2d(in_channels, out_channels, kernel_size=1),
+                    nn.BatchNorm2d(out_channels)
+                )
+            self.down_samp = nn.Sequential(
+                nn.MaxPool2d(2),
+                BasicBlock(in_channels, out_channels, downsample=dimension_map)
+            )
+        else:
+            self.down_samp = nn.Sequential(
+                nn.MaxPool2d(2),
+                _DoubleConv(in_channels, out_channels)
+            )
     
     def forward(self, x):
         outputs = self.down_samp(x)
@@ -47,7 +69,7 @@ class DownSamp(nn.Module):
 
 
 class UpSamp(nn.Module):
-    def __init__(self, in_channels, out_channels, bilinear=False):
+    def __init__(self, in_channels, out_channels, bilinear=False, residual=False):
         super(UpSamp, self).__init__()
         if bilinear:
             self.up = nn.Sequential(
@@ -57,7 +79,17 @@ class UpSamp(nn.Module):
         else:
             self.up = nn.ConvTranspose2d(in_channels, in_channels // 2,\
                 kernel_size=4, stride=2, padding=1)
-        self.conv = _DoubleConv(in_channels, out_channels)
+        
+        if residual:
+            dimension_map = None
+            if not in_channels == out_channels:
+                dimension_map = nn.Sequential(
+                    nn.Conv2d(in_channels, out_channels, kernel_size=1),
+                    nn.BatchNorm2d(out_channels)
+                )
+            self.conv = BasicBlock(in_channels, out_channels, downsample=dimension_map)
+        else:
+            self.conv = _DoubleConv(in_channels, out_channels)
         
     
     def forward(self, x1, x2):

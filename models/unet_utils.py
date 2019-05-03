@@ -23,16 +23,22 @@ class _DoubleConv(nn.Module):
         return outputs
 
 class InConv(nn.Module):
-    def __init__(self, in_channels, out_channels, residual=False):
+    def __init__(self, in_channels, out_channels, residual=False, expansion=1):
         super(InConv, self).__init__()
         if residual:
+            layers = []
             dimension_map = None
             if not in_channels == out_channels:
                 dimension_map = nn.Sequential(
                     nn.Conv2d(in_channels, out_channels, kernel_size=1),
                     nn.BatchNorm2d(out_channels)
                 )
-            self.conv = BasicBlock(in_channels, out_channels, downsample=dimension_map)
+            layers.append(BasicBlock(in_channels, out_channels, downsample=dimension_map))
+            
+            for _ in range(1, expansion):
+                layers.append(BasicBlock(out_channels, out_channels, downsample=None))
+            
+            self.conv = nn.Sequential(*layers)
         else:
             self.conv = _DoubleConv(in_channels, out_channels)
 
@@ -43,19 +49,22 @@ class InConv(nn.Module):
 
 
 class DownSamp(nn.Module):
-    def __init__(self, in_channels, out_channels, residual=False):
+    def __init__(self, in_channels, out_channels, residual=False, expansion=1):
         super(DownSamp, self).__init__()
         if residual:
+            layers = [nn.MaxPool2d(2)]
             dimension_map = None
             if not in_channels == out_channels:
                 dimension_map = nn.Sequential(
                     nn.Conv2d(in_channels, out_channels, kernel_size=1),
                     nn.BatchNorm2d(out_channels)
                 )
-            self.down_samp = nn.Sequential(
-                nn.MaxPool2d(2),
-                BasicBlock(in_channels, out_channels, downsample=dimension_map)
-            )
+            layers.append(BasicBlock(in_channels, out_channels, downsample=dimension_map))
+
+            for _ in range(1, expansion):
+                layers.append(BasicBlock(out_channels, out_channels, downsample=None))
+            
+            self.down_samp = nn.Sequential(*layers)
         else:
             self.down_samp = nn.Sequential(
                 nn.MaxPool2d(2),
@@ -69,7 +78,7 @@ class DownSamp(nn.Module):
 
 
 class UpSamp(nn.Module):
-    def __init__(self, in_channels, out_channels, bilinear=False, residual=False):
+    def __init__(self, in_channels, out_channels, bilinear=False, residual=False, expansion=1):
         super(UpSamp, self).__init__()
         if bilinear:
             self.up = nn.Sequential(
@@ -81,13 +90,19 @@ class UpSamp(nn.Module):
                 kernel_size=4, stride=2, padding=1)
         
         if residual:
+            layers = []
             dimension_map = None
             if not in_channels == out_channels:
                 dimension_map = nn.Sequential(
                     nn.Conv2d(in_channels, out_channels, kernel_size=1),
                     nn.BatchNorm2d(out_channels)
                 )
-            self.conv = BasicBlock(in_channels, out_channels, downsample=dimension_map)
+            layers.append(BasicBlock(in_channels, out_channels, downsample=dimension_map))
+
+            for _ in range(1, expansion):
+                layers.append(BasicBlock(out_channels, out_channels, downsample=None))
+            
+            self.conv = nn.Sequential(*layers)
         else:
             self.conv = _DoubleConv(in_channels, out_channels)
         

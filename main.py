@@ -47,8 +47,8 @@ w_decay = 1e-5
 step_size = 10
 gamma = 1.
 configs = "UNets-BRATS2018_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
-print('Configs: ')
-print(configs)
+logger.info('Configs: ')
+logger.info(configs)
 
 input_data_type = sys.argv[1]
 if input_data_type not in ['t1ce', 'flair', 't2-flair']:
@@ -122,7 +122,7 @@ def get_fcn_model(num_classes, use_gpu):
 def get_unet_model(input_channels, num_classes, use_gpu):
     # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
     # unet = UNetWithVGGEncoder(vgg_model, num_classes)
-    unet = UNet(input_channels, num_classes, residual=True, expansion=2)
+    unet = UNet(input_channels, num_classes)
     #unet = UNetWithResnet50Encoder(input_channels, num_classes)
     if use_gpu:
         ts = time.time()
@@ -168,7 +168,7 @@ class SoftDiceLoss(nn.Module):
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Start training using {} modal.'.format(input_data_type))
     model = get_unet_model(2, 1, use_gpu)
-    # model = get_fcn_model(num_classes, use_gpu)
+    
     # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
     criterion = SoftDiceLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)

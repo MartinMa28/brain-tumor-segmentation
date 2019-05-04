@@ -106,37 +106,11 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
 
     return data_set, data_loader
 
-def get_fcn_model(num_classes, use_gpu):
-    vgg_model = VGGNet(pretrained=False, requires_grad=True, remove_fc=True, batch_norm=True)
-    fcn_model = FCN8sScaledBN(pretrained_net=vgg_model, n_class=num_classes)
-
-    if use_gpu:
-        ts = time.time()
-        # vgg_model = vgg_model.to(device)
-        fcn_model = fcn_model.to(device)
-        
-        print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
-    
-    return fcn_model
-
-def get_unet_model(input_channels, num_classes, use_gpu):
-    # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
-    # unet = UNetWithVGGEncoder(vgg_model, num_classes)
-    unet = UNet(input_channels, num_classes)
-    #unet = UNetWithResnet50Encoder(input_channels, num_classes)
-    if use_gpu:
-        ts = time.time()
-        unet = unet.to(device)
-
-        print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
-    
-    return unet
 
 def time_stamp() -> str:
     ts = time.time()
     time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
     return time_stamp
-
 
 
 class SoftDiceLoss(nn.Module):
@@ -167,16 +141,21 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Start training using {} modal.'.format(input_data_type))
-    model = get_unet_model(2, 1, use_gpu)
     
-    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
-    criterion = SoftDiceLoss()
-    optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
-    
+    model = UNet(2, 1)
+    #model = UNetWithResnet50Encoder(input_channels, num_classes)
     if pre_trained:
         checkpoint = torch.load('scores/terminated_model.tar', map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    
+    if use_gpu:
+        ts = time.time()
+        unet = unet.to(device)
+        print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
+    # criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.25, 0.75]).to(device))
+    criterion = SoftDiceLoss()
+    optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
+    print(f'state_dict: {optimizer.state_dict()}')
 
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 

@@ -3,4 +3,5 @@ logs/
 .vscode/
 BRATS2018/
 BRATS2018_Validation/
+validations/
 __pycache__

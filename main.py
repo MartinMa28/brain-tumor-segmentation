@@ -46,9 +46,9 @@ lr = 1e-4
 w_decay = 1e-5
 step_size = 10
 gamma = 1.
-configs = "UNets-BRATS2018_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
-print('Configs: ')
-print(configs)
+configs = "UNet-BRATS2018_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
+logger.info('Configs: ')
+logger.info(configs)
 
 input_data_type = sys.argv[1]
 if input_data_type not in ['t1ce', 'flair', 't2-flair', 'seg']:
@@ -64,7 +64,6 @@ device = torch.device('cuda:0' if use_gpu else 'cpu')
 
 def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     data_transforms = transforms.Compose([
-            ZeroPad(),
             NormalizeBRATS(),
             ToTensor()
         ])
@@ -115,31 +114,7 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
 
     return data_set, data_loader
 
-def get_fcn_model(num_classes, use_gpu):
-    vgg_model = VGGNet(pretrained=False, requires_grad=True, remove_fc=True, batch_norm=True)
-    fcn_model = FCN8sScaledBN(pretrained_net=vgg_model, n_class=num_classes)
 
-    if use_gpu:
-        ts = time.time()
-        # vgg_model = vgg_model.to(device)
-        fcn_model = fcn_model.to(device)
-        
-        print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
-    
-    return fcn_model
-
-def get_unet_model(input_channels, num_classes, use_gpu):
-    # vgg_model = VGGEncoder(pretrained=True, requires_grad=True, remove_fc=True)
-    # unet = UNetWithVGGEncoder(vgg_model, num_classes)
-    # unet = UNet(input_channels, num_classes)
-    unet = UNetWithResnet50Encoder(input_channels, num_classes)
-    if use_gpu:
-        ts = time.time()
-        unet = unet.to(device)
-
-        print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
-    
-    return unet
 
 def time_stamp() -> str:
     ts = time.time()
@@ -176,16 +151,21 @@ class SoftDiceLoss(nn.Module):
 
 def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Start training using {} modal.'.format(input_data_type))
-    model = get_unet_model(4, num_classes, use_gpu)
-    # model = get_fcn_model(num_classes, use_gpu)
+    model = UNet(4, 4, residual=True, expansion=2)
+    
     criterion = nn.CrossEntropyLoss()
-    # criterion = SoftDiceLoss()
+    
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     
     if pre_trained:
         checkpoint = torch.load('scores/terminated_model.tar', map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    
+    if use_gpu:
+        ts = time.time()
+        model.to(device)
+
+        print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
 
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 

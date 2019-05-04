@@ -6,17 +6,17 @@ import torch.nn.functional as F
 from .vgg_encoder import VGGEncoder
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes):
+    def __init__(self, n_channels, n_classes, residual=False, expansion=1):
         super(UNet, self).__init__()
-        self.inp_conv = InConv(n_channels, 64)
-        self.down1 = DownSamp(64, 128)
-        self.down2 = DownSamp(128, 256)
-        self.down3 = DownSamp(256, 512)
-        self.down4 = DownSamp(512, 1024)
-        self.up1 = UpSamp(1024, 512)
-        self.up2 = UpSamp(512, 256)
-        self.up3 = UpSamp(256, 128)
-        self.up4 = UpSamp(128, 64)
+        self.inp_conv = InConv(n_channels, 64, residual, expansion)
+        self.down1 = DownSamp(64, 128, residual, expansion)
+        self.down2 = DownSamp(128, 256, residual, expansion)
+        self.down3 = DownSamp(256, 512, residual, expansion)
+        self.down4 = DownSamp(512, 1024, residual, expansion)
+        self.up1 = UpSamp(1024, 512, residual, expansion)
+        self.up2 = UpSamp(512, 256, residual, expansion)
+        self.up3 = UpSamp(256, 128, residual, expansion)
+        self.up4 = UpSamp(128, 64, residual, expansion)
         self.out_conv = OutConv(64, n_classes)
     
     def forward(self, x):
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     # dimension-match tests
     batch_size, n_classes, height, width = 4, 2, 240, 240
     inputs = torch.randn(batch_size, 3, height, width)
-    unet = UNet(3, n_classes)
+    unet = UNet(3, n_classes, residual=True, expansion=2)
     outputs = unet(inputs)
     # vgg_enc = VGGEncoder()
     # unet = UNetWithVGGEncoder(vgg_enc, 21)

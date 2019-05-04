@@ -108,3 +108,38 @@ class ZeroPad():
         
         return sc, mask
 
+class ToTensorVal():
+    """
+    Convert ndarray samples to Tensors
+    """
+    def __call__(self, sc):
+        sc = torch.from_numpy(sc).float()
+        
+        return sc
+
+
+class NormalizeBRATSVal():
+    """
+    Subtract the mean and divide by the standard deviation
+    """
+    def __call__(self, sc):
+        mean = np.mean(sc, axis=(1, 2), keepdims=True)
+        std = np.std(sc, axis=(1, 2))
+        
+        no_zero_std = np.array([1 if st == 0. else st for st in std])
+        no_zero_std = np.expand_dims(no_zero_std, axis=1)
+        no_zero_std = np.expand_dims(no_zero_std, axis=2)
+        
+        sc = (sc - mean) / no_zero_std
+        
+        return sc
+
+
+class ZeroPadVal():
+    """
+    Zero-pad the scan and the mask to 256 * 256
+    """
+    def __call__(self, sc):
+        sc = np.pad(sc, pad_width=((0, 0), (8, 8), (8, 8)), mode='constant', constant_values=((0, 0), (0, 0), (0, 0)))
+        
+        return sc

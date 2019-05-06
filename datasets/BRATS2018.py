@@ -9,7 +9,7 @@ import os
 
 
 class BRATS2018(Dataset):
-    def __init__(self, root_dir, data_set='train', seg_type='et', scan_type='t1ce', transform=None):
+    def __init__(self, root_dir, grade='HGG', data_set='train', seg_type='et', scan_type='t1ce', transform=None):
         """
         root_dir: the directory of BRATS2018 dataset
         data_set: train or val
@@ -23,8 +23,8 @@ class BRATS2018(Dataset):
         self.seg_type = seg_type
         self.transform = transform
         
-        self.base_dir = os.path.join(self.root_dir, 'seg/{}'.format(self.data_set))
-        dataset_txt_path = os.path.join(self.root_dir, 'seg/{}.txt'.format(self.data_set))
+        self.base_dir = os.path.join(self.root_dir, 'SEG_{}/{}'.format(grade, self.data_set))
+        dataset_txt_path = os.path.join(self.root_dir, 'SEG_{}/{}.txt'.format(grade, self.data_set))
         with open(dataset_txt_path, 'r') as f:
             self.sample_list = [x.strip() for x in f.readlines()]
         

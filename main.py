@@ -54,6 +54,10 @@ input_data_type = sys.argv[1]
 if input_data_type not in ['t1ce', 'flair', 't2-flair', 'seg']:
     raise ValueError('Only supports scan types of t1ce, flair, t2-flair or seg')
 
+grade_type = sys.argv[2]
+if grade_type not in ['HGG', 'LGG']:
+    raise ValueError('grade_type should be HGG or LGG!')
+
 score_dir = os.path.join("scores", configs)
 if not os.path.exists(score_dir):
     os.makedirs(score_dir)
@@ -62,7 +66,7 @@ use_gpu = torch.cuda.is_available()
 device = torch.device('cuda:0' if use_gpu else 'cpu')
 # global variables
 
-def get_dataset_dataloader(input_data_type, seg_type, batch_size):
+def get_dataset_dataloader(input_data_type, seg_type, batch_size, grade='HGG'):
     data_transforms = transforms.Compose([
             NormalizeBRATS(),
             ToTensor()
@@ -71,6 +75,7 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     if input_data_type == 't1ce':
         data_set = {
             phase: BRATS2018('./BRATS2018/',\
+                            grade=grade,\
                             data_set=phase,\
                             seg_type=seg_type,\
                             transform=data_transforms)
@@ -79,6 +84,7 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     elif input_data_type == 'flair':
         data_set = {
             phase: BRATS2018('./BRATS2018/',\
+                            grade=grade,\
                             data_set=phase,\
                             scan_type='flair',\
                             seg_type=seg_type,\
@@ -88,6 +94,7 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     elif input_data_type == 't2-flair':
         data_set = {
             phase: BRATS2018('./BRATS2018/',\
+                            grade=grade,\
                             data_set=phase,\
                             scan_type='t2-flair',\
                             seg_type=seg_type,\
@@ -97,6 +104,7 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size):
     elif input_data_type == 'seg':
         data_set = {
             phase: BRATS2018('./BRATS2018/',\
+                            grade=grade,\
                             data_set=phase,\
                             scan_type='seg',\
                             seg_type=seg_type,\
@@ -149,7 +157,7 @@ class SoftDiceLoss(nn.Module):
         return score
 
 
-def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
+def train(input_data_type, grade, seg_type, num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Start training using {} modal.'.format(input_data_type))
     model = UNet(4, 4, residual=True, expansion=2)
     
@@ -169,7 +177,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
 
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of 0.5 every 5 epochs
 
-    data_set, data_loader = get_dataset_dataloader(input_data_type, seg_type, batch_size)
+    data_set, data_loader = get_dataset_dataloader(input_data_type, seg_type, batch_size, grade=grade)
 
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -283,7 +291,7 @@ def train(input_data_type, seg_type, num_classes, batch_size, epochs, use_gpu, l
     return model, optimizer
 
 if __name__ == "__main__":
-    model, optimizer = train(input_data_type, 'seg', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    model, optimizer = train(input_data_type, grade_type, 'seg', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

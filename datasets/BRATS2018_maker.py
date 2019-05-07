@@ -71,15 +71,15 @@ def _process_single_case(case_name, dataset_type='train'):
         
         np.save(os.path.join(data_dir, case_name + '_{}_scan'.format(str_i)), sc)
 
-        # wt = (seg[:, :, i] > 0).astype(np.uint8)                                     # whole tumor
-        # et = (seg[:, :, i] == 4).astype(np.uint8)                                    # enhancing tumor
-        # tc = np.logical_or(seg[:, :, i] == 1, seg[:, :, i] == 4).astype(np.uint8)    # tumor core
+        wt = (seg[:, :, i] > 0).astype(np.uint8)                                     # whole tumor
+        et = (seg[:, :, i] == 4).astype(np.uint8)                                    # enhancing tumor
+        tc = np.logical_or(seg[:, :, i] == 1, seg[:, :, i] == 4).astype(np.uint8)    # tumor core
         seg_i = seg[:, :, i].astype(np.uint8)
         seg_i = seg_i + (seg_i == 4).astype(np.uint8) * (3 * np.ones((seg_i.shape[0], seg_i.shape[1])) - seg_i)
 
-        # np.save(os.path.join(data_dir, case_name + '_{}_wt'.format(str_i)), wt)
-        # np.save(os.path.join(data_dir, case_name + '_{}_et'.format(str_i)), et)
-        # np.save(os.path.join(data_dir, case_name + '_{}_tc'.format(str_i)), tc)
+        np.save(os.path.join(data_dir, case_name + '_{}_wt'.format(str_i)), wt)
+        np.save(os.path.join(data_dir, case_name + '_{}_et'.format(str_i)), et)
+        np.save(os.path.join(data_dir, case_name + '_{}_tc'.format(str_i)), tc)
         np.save(os.path.join(data_dir, case_name + '_{}_seg'.format(str_i)), seg_i)
 
         with open(data_list, 'a') as l:
@@ -112,5 +112,5 @@ if __name__ == "__main__":
 
     num_train_cases = sum([1 for line in open(train_list_txt)])
     num_val_cases = sum([1 for line in open(val_list_txt)])
-    assert(len(os.listdir(train_dir)) == 2 * num_train_cases)
-    assert(len(os.listdir(val_dir)) == 2 * num_val_cases)
+    assert(len(os.listdir(train_dir)) == 5 * num_train_cases)
+    assert(len(os.listdir(val_dir)) == 5 * num_val_cases)

@@ -16,11 +16,12 @@ from torchvision import transforms
 import copy
 from metrics.metrics import Evaluator
 from metrics.torch_seg_metrics import *
+from hyper_param_config import *
 
 import numpy as np
 import time
 import datetime
-import sys
+import argparse
 import os
 import math
 import signal
@@ -37,30 +38,26 @@ fileConfig('./logging_conf.ini')
 logger = logging.getLogger('main')
 
 
-# 20 classes and background for VOC segmentation
-n_classes = 4
-batch_size = 2
-epochs = 10
-lr = 1e-4
-#momentum = 0
-w_decay = 1e-5
-step_size = 10
-gamma = 1.
-configs = "UNet-BRATS2018_batch{}_training_epochs{}_Adam_scheduler-step{}-gamma{}_lr{}_w_decay{}".format(batch_size, epochs, step_size, gamma, lr, w_decay)
 logger.info('Configs: ')
 logger.info(configs)
-
-input_data_type = sys.argv[1]
-if input_data_type not in ['t1ce', 'flair', 't2-flair', 'seg']:
-    raise ValueError('Only supports scan types of t1ce, flair, t2-flair or seg')
-
-grade_type = sys.argv[2]
-if grade_type not in ['HGG', 'LGG']:
-    raise ValueError('grade_type should be HGG or LGG!')
 
 score_dir = os.path.join("scores", configs)
 if not os.path.exists(score_dir):
     os.makedirs(score_dir)
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("task", help='Train a segmentation model or a classification model.',\
+    default='seg', choices=['seg', 'cls'])
+parser.add_argument('-i', '--input', help='input MRI scan modalities', default='all',\
+    choices=['t1ce', 'flair', 't2-flair', 'all'])
+parser.add_argument('-g', '--grade', help='the grade of training data (HGG or LGG)',\
+    default='HGG', choices=['HGG', 'LGG'])
+parser.add_argument('--seg_task', help='segmentaiton seg_task', default='seg',\
+    choices=['seg', 'wt', 'et', 'tc'])
+parser.add_argument('--pre_trained', help='whether training from a pre-trained model',\
+    action='store_true')
+args = parser.parse_args()
 
 use_gpu = torch.cuda.is_available()
 device = torch.device('cuda:0' if use_gpu else 'cpu')
@@ -101,18 +98,18 @@ def get_dataset_dataloader(input_data_type, seg_type, batch_size, grade='HGG'):
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
-    elif input_data_type == 'seg':
+    elif input_data_type == 'all':
         data_set = {
             phase: BRATS2018('./BRATS2018/',\
                             grade=grade,\
                             data_set=phase,\
-                            scan_type='seg',\
+                            scan_type='all',\
                             seg_type=seg_type,\
                             transform=data_transforms)
             for phase in ['train', 'val']
         }
     else:
-        raise ValueError('Scan type must be t1ce, flair, t2-flair, or seg!')
+        raise ValueError('Scan type must be t1ce, flair, t2-flair, or all!')
     
 
     data_loader = {
@@ -166,7 +163,7 @@ def train(input_data_type, grade, seg_type, num_classes, batch_size, epochs, use
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     
     if pre_trained:
-        checkpoint = torch.load('scores/terminated_model.tar', map_location=device)
+        checkpoint = torch.load(pre_trained_path, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
     
     if use_gpu:
@@ -291,7 +288,11 @@ def train(input_data_type, grade, seg_type, num_classes, batch_size, epochs, use
     return model, optimizer
 
 if __name__ == "__main__":
-    model, optimizer = train(input_data_type, grade_type, 'seg', n_classes, batch_size, epochs, use_gpu, lr, w_decay)
+    if args.task == 'seg':
+        model, optimizer = train(args.input, args.grade, args.seg_task, n_classes, batch_size, epochs, use_gpu, lr, w_decay, args.pre_trained)
+    else:
+        logger.info('Classification will be added soon.')
+        quit()
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

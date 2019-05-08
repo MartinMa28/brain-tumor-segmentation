@@ -12,22 +12,15 @@ class BRATS2018_3D(Dataset):
     BraTS2018 classification dataset:
     LGG - 0, HGG - 1
     """
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, data_set='train', transform=None):
         self.root_dir = os.path.expanduser(root_dir)
         self.transform = transform
+        self.data_set = data_set
+        self.base_dir = os.path.join(self.root_dir, 'CLS')
+        self.case_dir = os.path.join(self.base_dir, self.data_set)
         
-        LGG_list = sorted(os.listdir(os.path.join(self.root_dir, 'LGG')))
-        LGG_list = list(map(lambda x: 'LGG/' + x, LGG_list))
-        HGG_list = sorted(os.listdir(os.path.join(self.root_dir, 'HGG')))
-        HGG_list = list(map(lambda x: 'HGG/' + x, HGG_list))
-
-        # label 0 denotes LGG, label 1 denotes HGG
-        labels = [0] * len(LGG_list) + [1] * len(HGG_list)
-        scan_list = LGG_list + HGG_list
-
-        assert len(scan_list) == len(labels)
-
-        self.sample_list = list(zip(scan_list, labels))
+        with open(os.path.join(self.base_dir, self.data_set + '.txt')) as f:
+            self.sample_list = [case.strip() for case in f.readlines()]
 
     
     def __len__(self):
@@ -35,23 +28,11 @@ class BRATS2018_3D(Dataset):
 
 
     def __getitem__(self, idx):
-        case_dir = os.path.join(self.root_dir, self.sample_list[idx][0])
-        case_name = self.sample_list[idx][0][4:]
-        t1 = nib.load(os.path.join(case_dir, case_name + '_t1.nii.gz')).get_data()
-        t1ce = nib.load(os.path.join(case_dir, case_name + '_t1ce.nii.gz')).get_data()
-        t2 = nib.load(os.path.join(case_dir, case_name + '_t2.nii.gz')).get_data()
-        flair = nib.load(os.path.join(case_dir, case_name + '_flair.nii.gz')).get_data()
-
-        assert t1.shape == (240, 240, 155)
-        assert t1ce.shape == (240, 240, 155)
-        assert t2.shape == (240, 240, 155)
-        assert flair.shape == (240, 240, 155)
-
-        sc = np.array([t1, t1ce, t2, flair])
-        assert sc.shape == (4, 240, 240, 155)
-
-        sample = (sc, np.array([self.sample_list[idx][1]]))
-
+        case_name = self.sample_list[idx]
+        sc = np.load(os.path.join(self.case_dir, case_name + '_scan.npy'))
+        grade = np.load(os.path.join(self.case_dir, case_name + '_grade.npy'))
+        sample = (sc, grade)
+        
         if self.transform:
             sample = self.transform(sample)
 

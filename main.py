@@ -10,7 +10,9 @@ from models.fcn import VGGNet, FCN8sScaledBN, FCN8sScaled
 from models.unet import UNet
 from models.unet_resnet_encoder import UNetWithResnet50Encoder
 from models.vgg_encoder import VGGEncoder
+from models.resnet3D import resnet50_3D
 from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor, ZeroPad
+from datasets.BRATS2018_3D import BRATS2018_3D, NormalizeBRATS3D, CenterCropBRATS3D
 
 from torchvision import transforms
 import copy
@@ -287,12 +289,148 @@ def train(input_data_type, grade, seg_type, num_classes, batch_size, epochs, use
 
     return model, optimizer
 
+def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
+    logger.info('Starts training a classification model.')
+    model = resnet50_3D(num_classes=num_classes)
+    
+    criterion = nn.CrossEntropyLoss()
+    
+    optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
+    
+    if pre_trained:
+        checkpoint = torch.load(pre_trained_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+    
+    if use_gpu:
+        ts = time.time()
+        model.to(device)
+
+        print("Finish cuda loading, time elapsed {}".format(time.time() - ts))
+
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+    
+    data_transforms = transforms.Compose([
+        CenterCropBRATS3D(),
+        NormalizeBRATS3D(),
+        ToTensor()
+    ])
+
+    data_set = {
+            phase: BRATS2018_3D('BRATS2018/',\
+                            data_set=phase,\
+                            transform=data_transforms)
+            for phase in ['train', 'val']
+        }
+    data_loader = {
+        'train': DataLoader(data_set['train'], batch_size=batch_size, shuffle=True, num_workers=0),
+        'val': DataLoader(data_set['val'], batch_size=batch_size, shuffle=False, num_workers=0)
+    }
+
+    since = time.time()
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
+
+    epoch_loss = np.zeros((2, epochs))
+    epoch_acc = np.zeros((2, epochs))
+    epoch_class_acc = np.zeros((2, epochs, num_classes))
+    
+    def term_int_handler(signal_num, frame):
+        np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
+        np.save(os.path.join(score_dir, 'epoch_loss'), epoch_loss)
+
+        model.load_state_dict(best_model_wts)
+
+        logger.info('Got terminated and saved model.state_dict')
+        torch.save(model.state_dict(), os.path.join(score_dir, 'terminated_model.pt'))
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()
+        }, os.path.join(score_dir, 'terminated_model.tar'))
+        
+        quit()
+
+    signal.signal(signal.SIGINT, term_int_handler)
+    signal.signal(signal.SIGTERM, term_int_handler)
+
+    for epoch in range(epochs):
+        logger.info('Epoch {}/{}'.format(epoch + 1, epochs))
+        logger.info('-' * 28)
+        
+        for phase_ind, phase in enumerate(['train', 'val']):
+            if phase == 'train':
+                model.train()
+                logger.info(phase)
+            else:
+                model.eval()
+                logger.info(phase)
+            
+            running_loss = torch.tensor(0, dtype=torch.float32)
+            running_acc = torch.tensor(0, dtype=torch.float32)
+            running_class_acc = torch.zeros(num_classes, dtype=torch.float32)
+
+            for batch_ind, batch in enumerate(data_loader[phase]):
+                imgs, labels = batch
+                imgs = imgs.to(device)
+                labels = labels.view(-1,).to(device)
+
+                # zero the learnable parameters gradients
+                optimizer.zero_grad()
+
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(imgs)
+                    loss = criterion(outputs, labels)
+                    
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+                
+                preds = torch.argmax(F.softmax(outputs, dim=1), dim=1).view(-1,)
+                running_loss += loss * imgs.size(0)
+                running_acc += torch.sum(preds == labels)
+                running_class_acc += torch.tensor([torch.sum((preds == labels) * (labels == l)).float() 
+                                            / torch.sum(labels == l) for l in [0., 1]]) * imgs.size(0)
+                logger.debug('Batch {} running loss: {:.4f}'.format(batch_ind,\
+                    running_loss))
+            
+            epoch_loss[phase_ind, epoch] = running_loss.cpu().numpy() / len(data_set[phase])
+            epoch_acc[phase_ind, epoch] = running_acc.cpu().numpy() / len(data_set[phase])
+            epoch_class_acc[phase_ind, epoch, :] = running_class_acc.cpu().numpy() / len(data_set[phase])
+
+            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}'.format(phase,\
+                epoch_loss[phase_ind, epoch],\
+                epoch_acc[phase_ind, epoch],\
+                epoch_class_acc[phase_ind, epoch]))
+
+            if phase == 'val' and epoch_acc[phase_ind, epoch] > best_acc:
+                best_acc = epoch_acc[phase_ind, epoch]
+                best_model_wts = copy.deepcopy(model.state_dict())
+            
+            if phase == 'val' and (epoch + 1) % 10 == 0:
+                logger.info('Saved model.state_dict in epoch {}'.format(epoch + 1))
+                torch.save(model.state_dict(), os.path.join(score_dir, 'epoch{}_model.pt'.format(epoch + 1)))
+
+    
+    time_elapsed = time.time() - since
+    logger.info('Training completed in {}m {}s'.format(int(time_elapsed / 60),\
+        int(time_elapsed) % 60))
+
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+
+    # save numpy results
+    np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
+    np.save(os.path.join(score_dir, 'epoch_class_accuracy'), epoch_class_acc)
+    np.save(os.path.join(score_dir, 'epoch_loss'), epoch_loss)
+
+    return model, optimizer
+    
+            
+
 if __name__ == "__main__":
     if args.task == 'seg':
         model, optimizer = train(args.input, args.grade, args.seg_task, n_classes, batch_size, epochs, use_gpu, lr, w_decay, args.pre_trained)
     else:
-        logger.info('Classification will be added soon.')
-        quit()
+        model, optimizer = train_classification(n_classes, batch_size, epochs, use_gpu, lr, w_decay, args.pre_trained)
     
     logger.info('Saved model.state_dict')
     torch.save(model.state_dict(), os.path.join(score_dir, 'trained_model.pt'))

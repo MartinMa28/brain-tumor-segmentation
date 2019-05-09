@@ -392,7 +392,7 @@ def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate
                 logger.debug('Batch {} running loss: {:.4f}'.format(batch_ind,\
                     running_loss))
             
-            epoch_loss[phase_ind, epoch] = running_loss.cpu().numpy() / len(data_set[phase])
+            epoch_loss[phase_ind, epoch] = running_loss.cpu().detach().numpy() / len(data_set[phase])
             epoch_acc[phase_ind, epoch] = running_acc.cpu().numpy() / len(data_set[phase])
             epoch_class_acc[phase_ind, epoch, :] = running_class_acc.cpu().numpy() / len(data_set[phase])
 

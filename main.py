@@ -396,10 +396,10 @@ def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate
             epoch_acc[phase_ind, epoch] = running_acc.cpu().numpy() / len(data_set[phase])
             epoch_class_acc[phase_ind, epoch, :] = running_class_acc.cpu().numpy() / len(data_set[phase])
 
-            logger.info('{} loss: {:.4f}, acc: {:.4f}, class acc: {:.4f}'.format(phase,\
+            logger.info('{} loss: {:.4f}, acc: {:.4f}, LGG acc: {:.4f}, HGG acc: {:.4f}'.format(phase,\
                 epoch_loss[phase_ind, epoch],\
                 epoch_acc[phase_ind, epoch],\
-                epoch_class_acc[phase_ind, epoch]))
+                epoch_class_acc[phase_ind, epoch, 0], epoch_class_acc[phase_ind, epoch, 1]))
 
             if phase == 'val' and epoch_acc[phase_ind, epoch] > best_acc:
                 best_acc = epoch_acc[phase_ind, epoch]

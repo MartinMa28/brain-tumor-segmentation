@@ -11,6 +11,7 @@ from models.unet import UNet
 from models.unet_resnet_encoder import UNetWithResnet50Encoder
 from models.vgg_encoder import VGGEncoder
 from models.resnet3D import resnet50_3D
+from models.logistic import Logistic
 from datasets.BRATS2018 import BRATS2018, NormalizeBRATS, ToTensor, ZeroPad
 from datasets.BRATS2018_3D import BRATS2018_3D, NormalizeBRATS3D, CenterCropBRATS3D
 
@@ -291,7 +292,7 @@ def train(input_data_type, grade, seg_type, num_classes, batch_size, epochs, use
 
 def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate, w_decay, pre_trained=False):
     logger.info('Starts training a classification model.')
-    model = resnet50_3D(num_classes=num_classes)
+    model = Logistic(volume=(4, 160, 160, 144), num_classes=num_classes)
     
     criterion = nn.CrossEntropyLoss()
     
@@ -332,7 +333,7 @@ def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate
 
     epoch_loss = np.zeros((2, epochs))
     epoch_acc = np.zeros((2, epochs))
-    epoch_class_acc = np.zeros((2, epochs, num_classes))
+    
     
     def term_int_handler(signal_num, frame):
         np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
@@ -366,11 +367,11 @@ def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate
             
             running_loss = torch.tensor(0, dtype=torch.float32)
             running_acc = torch.tensor(0, dtype=torch.float32)
-            running_class_acc = torch.zeros(num_classes, dtype=torch.float32)
+            
 
             for batch_ind, batch in enumerate(data_loader[phase]):
                 imgs, labels = batch
-                imgs = imgs.to(device)
+                imgs = imgs.view(batch_size, -1).to(device)
                 labels = labels.view(-1,).to(device)
 
                 # zero the learnable parameters gradients
@@ -387,20 +388,18 @@ def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate
                 preds = torch.argmax(F.softmax(outputs, dim=1), dim=1).view(-1,)
                 running_loss += loss * imgs.size(0)
                 running_acc += torch.sum(preds == labels)
-                running_class_acc += torch.tensor([torch.sum((preds == labels) * (labels == l)).float() 
-                                            / torch.sum(labels == l) for l in [0., 1]]) * imgs.size(0)
+                
                 logger.debug('Batch {} running loss: {:.4f}'.format(batch_ind,\
                     running_loss))
             
             epoch_loss[phase_ind, epoch] = running_loss.cpu().detach().numpy() / len(data_set[phase])
             epoch_acc[phase_ind, epoch] = running_acc.cpu().numpy() / len(data_set[phase])
-            epoch_class_acc[phase_ind, epoch, :] = running_class_acc.cpu().numpy() / len(data_set[phase])
+            
 
-            logger.info('{} loss: {:.4f}, acc: {:.4f}, LGG acc: {:.4f}, HGG acc: {:.4f}'.format(phase,\
+            logger.info('{} loss: {:.4f}, acc: {:.4f}'.format(phase,\
                 epoch_loss[phase_ind, epoch],\
-                epoch_acc[phase_ind, epoch],\
-                epoch_class_acc[phase_ind, epoch, 0], epoch_class_acc[phase_ind, epoch, 1]))
-
+                epoch_acc[phase_ind, epoch]))
+            
             if phase == 'val' and epoch_acc[phase_ind, epoch] > best_acc:
                 best_acc = epoch_acc[phase_ind, epoch]
                 best_model_wts = copy.deepcopy(model.state_dict())
@@ -419,7 +418,6 @@ def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate
 
     # save numpy results
     np.save(os.path.join(score_dir, 'epoch_accuracy'), epoch_acc)
-    np.save(os.path.join(score_dir, 'epoch_class_accuracy'), epoch_class_acc)
     np.save(os.path.join(score_dir, 'epoch_loss'), epoch_loss)
 
     return model, optimizer

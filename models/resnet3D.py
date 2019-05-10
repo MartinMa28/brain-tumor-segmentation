@@ -45,18 +45,18 @@ class ResNet3D(ResNet):
     # override parent (ResNet)'s init
     def __init__(self, block, layers, num_classes=4, zero_init_residual=False):
         super(ResNet, self).__init__()
-        self.inplanes = 16
-        self.conv1 = nn.Conv3d(4, 16, kernel_size=3, stride=2, padding=1,
+        self.inplanes = 32
+        self.conv1 = nn.Conv3d(4, 32, kernel_size=3, stride=2, padding=1,
                             bias=False)
-        self.bn1 = nn.BatchNorm3d(16)
+        self.bn1 = nn.BatchNorm3d(32)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool3d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 16, layers[0])
-        self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 128, layers[3], stride=2)
+        self.layer1 = self._make_layer(block, 32, layers[0])
+        self.layer2 = self._make_layer(block, 64, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 128, layers[2], stride=2)
+        self.layer4 = self._make_layer(block, 256, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
-        self.fc = nn.Linear(128 * block.expansion, num_classes)
+        self.fc = nn.Linear(256 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

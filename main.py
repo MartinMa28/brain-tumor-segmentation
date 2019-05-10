@@ -371,7 +371,7 @@ def train_classification(num_classes, batch_size, epochs, use_gpu, learning_rate
 
             for batch_ind, batch in enumerate(data_loader[phase]):
                 imgs, labels = batch
-                imgs = imgs.view(batch_size, -1).to(device)
+                imgs = imgs.view(imgs.size(0), -1).to(device)
                 labels = labels.view(-1,).to(device)
 
                 # zero the learnable parameters gradients

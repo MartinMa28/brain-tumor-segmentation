@@ -1,7 +1,7 @@
 # Classes for classification: HGG, LGG
 # Classes for segmentation: 0 - background, 1 - necrotic tumor, 2 - edema, 3 - enhancing tumor
 n_classes = 2
-batch_size = 3
+batch_size = 8
 epochs = 15
 lr = 1e-3
 #momentum = 0

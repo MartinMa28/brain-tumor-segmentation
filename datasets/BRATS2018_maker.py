@@ -97,7 +97,7 @@ def process_validating_case(case_name):
 if __name__ == "__main__":
     training_rate = 0.85
     case_list = sorted(os.listdir('./BRATS2018/{}/'.format(dataset_type)))
-    subset_list = case_list[:100]
+    subset_list = case_list[:]
     training_num = int(len(subset_list) * training_rate)
     train_list = subset_list[:training_num]
     val_list = subset_list[training_num:]

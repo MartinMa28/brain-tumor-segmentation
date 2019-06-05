@@ -163,8 +163,6 @@ def train(input_data_type, grade, seg_type, num_classes, batch_size, epochs, use
     
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=w_decay)
     
-    model = UNet(2, 1)
-    #model = UNetWithResnet50Encoder(input_channels, num_classes)
     if pre_trained:
         checkpoint = torch.load(pre_trained_path, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])

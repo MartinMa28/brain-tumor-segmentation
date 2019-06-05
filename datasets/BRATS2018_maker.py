@@ -2,10 +2,12 @@ import numpy as np
 import os
 import nibabel as nib
 from concurrent.futures import ThreadPoolExecutor
+import sys
 
 # global variables
-brats_base_dir = './BRATS2018/HGG'
-seg_base_dir = './BRATS2018/seg'
+dataset_type = sys.argv[1]
+brats_base_dir = './BRATS2018/{}'.format(dataset_type)
+seg_base_dir = './BRATS2018/SEG_{}'.format(dataset_type)
 train_dir = os.path.join(seg_base_dir, 'train')
 val_dir = os.path.join(seg_base_dir, 'val')
 train_list_txt = os.path.join(seg_base_dir, 'train.txt')
@@ -94,8 +96,8 @@ def process_validating_case(case_name):
 
 if __name__ == "__main__":
     training_rate = 0.85
-    case_list = sorted(os.listdir('./BRATS2018/HGG/'))
-    subset_list = case_list[:100]
+    case_list = sorted(os.listdir('./BRATS2018/{}/'.format(dataset_type)))
+    subset_list = case_list[:]
     training_num = int(len(subset_list) * training_rate)
     train_list = subset_list[:training_num]
     val_list = subset_list[training_num:]

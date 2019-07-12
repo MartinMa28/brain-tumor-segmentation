@@ -31,4 +31,7 @@ RB UNet41 is able to bring out a much better segmentation result than original U
 
 ## Demo
 ![Segmentation1](/imgs/UNet-ResidualBlock-Expansion_End_to_End_1_clipped.png)
+
 ![Segmentation2](/imgs/UNet-ResidualBlock-Expansion_End_to_End_2_clipped.png)
+
+![3D Segmentation](/imgs/3D-Glioma-segmentation.png)

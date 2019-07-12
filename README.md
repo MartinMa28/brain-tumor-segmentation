@@ -28,3 +28,7 @@ We double the number of convolution layers in the original UNet to extract more 
 RB UNet41 is able to bring out a much better segmentation result than original UNet. In addition to it, after looking at the feedback from UPenn school of medicine, we figure out that RB UNet41 performs really aweful on curtain cases in the validation set, which lowers the average Dice score drastically. While, the median of Dice score looks quite great. So we put a 3D ResNet 50 classifier in front of the segmentation process. Classified HGG/LGG cases are treated respectively by their own segmentation model. "RB UNet41 CLS" shows the result of our classfication + segmentation pipeline. Even if we added the classifier, some cases' Dice score of ET region is still pretty low. And we find that those bad cases' predicted segmentation result only has very limited pixels be classified as the ET region. So we set a threshold (700) for the minimum number of ET pixels, if the ET pixels are less than 700, they will be classified into the background class.
 
 ![Flowchat of the entire pipeline](/imgs/MRI_segmentation_flowchart.png)
+
+## Demo
+![Segmentation1](/imgs/UNet-ResidualBlock-Expansion_End_to_End_1_clipped.png)
+![Segmentation2](/imgs/UNet-ResidualBlock-Expansion_End_to_End_2_clipped.png)

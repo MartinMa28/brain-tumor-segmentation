@@ -1,6 +1,6 @@
 # BraTS2018 brain tumor segmentation
 
-We conduct the segmentation for 3D cases by splitting each 3D case into 2D planes and segmenting those 2D planes using residual UNet.
+Segment 3D cases by splitting each 3D case into 2D planes and segmenting those 2D planes using residual UNet.
 
 ## Links for BraTS2018 competition
 
